@@ -34,9 +34,15 @@ fn main() {
     let command = match command_data.get(command_name) {
         Some(c) => c,
         None => {
-            exit!("Command \"{}\" not found", command_name);
+            let keys: Vec<String> = command_data.keys().cloned().collect();
+            exit!("Command \"{}\" not found, options are:\n  {}", command_name, keys.join(", "));
         }
     };
 
-    execute::main(command_name, &command);
+    match execute::main(command_name, &command) {
+        Some(c) => {
+            process::exit(c);
+        },
+        None => {}
+    };
 }
