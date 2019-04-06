@@ -16,7 +16,7 @@ fn main() {
 
     let file_data = commands_file::load();
 
-    let command_name = args.value_of("command").expect("Unexpected Error: command missing");
+    let command_name = args.value_of("command").unwrap();
     let command = match file_data.get(command_name) {
         Some(c) => c,
         None => {
@@ -25,5 +25,11 @@ fn main() {
     };
 
     tmp_file::write(command_name, command);
-    tmp_file::delete();
+    println!(r#"Runnign command "{}"..."#, command_name);
+    match tmp_file::run_command(command_name) {
+        Some(exit_code) => {
+            process::exit(exit_code);
+        },
+        None => {},
+    };
 }
