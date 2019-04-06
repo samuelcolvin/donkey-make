@@ -1,52 +1,31 @@
 extern crate serde_yaml;
-
 #[macro_use]
 extern crate serde_derive;
 
-use std::fs::File;
-use std::path::Path;
 use std::process;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Person {
-    name: String,
-    age: u8,
-    phones: Vec<String>,
-}
+#[macro_use]
+mod macros;
 
-macro_rules! err {
-    ($msg:expr) => (
-        Err($msg)
-    );
-    ($fmt:expr, $($arg:expr),+) => (
-        Err(format!($fmt, $($arg),+))
-    );
-}
-
-fn load_file() -> Result<Person, String> {
-    let path = Path::new("donkey.yaml");
-
-    let file = match File::open(&path) {
-        Ok(t) => t,
-        Err(e) => return err!("couldn't open {}, {}", path.display(), e),
-    };
-
-    let p: Person = match serde_yaml::from_reader(file) {
-        Ok(t) => t,
-        Err(e) => return err!("YAML error: {}", e),
-    };
-    Ok(p)
-}
+mod cli;
+mod commands_file;
+mod tmp_file;
 
 fn main() {
-    let p = match load_file() {
-        Ok(t) => t,
-        Err(s) => {
-            eprintln!("Error Loading file:\n  {}", s);
-            process::exit(1);
+    let args = cli::parse();
+    //    println!("args: {:?}", args);
+
+    let file_data = commands_file::load();
+
+    //    println!("{:?}", file_data);
+    let command_name = args.value_of("command").expect("Unexpected Error: command missing");
+    let command = match file_data.get(command_name) {
+        Some(c) => c,
+        None => {
+            exit!(r#"Command {:?} not found"#, command_name);
         }
     };
 
-    println!("{:?}", p);
-    //    error!("testing: {}, {}", p.name, p.name);
+    tmp_file::write(command_name, command);
+    tmp_file::delete();
 }

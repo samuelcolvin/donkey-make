@@ -3,8 +3,10 @@ name = "donkey-make"
 version = "0.1.0"
 authors = ["Samuel Colvin <s@muelcolvin.com>"]
 edition = "2018"
+description = "Make for the 21st century"
 
 [dependencies]
 serde = "1.0"
 serde_yaml = "0.8"
 serde_derive = "1.0"
+clap = "2.33.0"
