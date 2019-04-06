@@ -13,11 +13,9 @@ mod tmp_file;
 
 fn main() {
     let args = cli::parse();
-    //    println!("args: {:?}", args);
 
     let file_data = commands_file::load();
 
-    //    println!("{:?}", file_data);
     let command_name = args.value_of("command").expect("Unexpected Error: command missing");
     let command = match file_data.get(command_name) {
         Some(c) => c,
