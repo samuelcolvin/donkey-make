@@ -28,15 +28,15 @@ fn parse_args() -> clap::ArgMatches<'static> {
 fn main() {
     let args = parse_args();
 
-    let commands_data = commands::load_file();
+    let command_data = commands::load_file();
 
     let command_name = args.value_of("command").unwrap();
-    let command = match commands_data.get(command_name) {
+    let command = match command_data.get(command_name) {
         Some(c) => c,
         None => {
             exit!("Command \"{}\" not found", command_name);
         }
     };
 
-    execute::main(command_name, command);
+    execute::main(command_name, &command);
 }

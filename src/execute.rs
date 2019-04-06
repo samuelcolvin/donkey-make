@@ -7,13 +7,15 @@ use std::process::Command;
 
 static PATH_STR: &str = ".donkey.tmp";
 
-pub fn main(command_name: &str, command: &Vec<String>) -> Option<i32> {
-    write(command_name, command);
+use crate::commands::Cmd;
+
+pub fn main(command_name: &str, cmd: &Cmd) -> Option<i32> {
+    write(command_name, cmd);
     println!(r#"Runnign command "{}"..."#, command_name);
     run_command(command_name)
 }
 
-fn write(command_name: &str, command: &Vec<String>) {
+fn write(command_name: &str, cmd: &Cmd) {
     let path = Path::new(PATH_STR);
     if path.exists() {
         exit!(
@@ -32,7 +34,7 @@ fn write(command_name: &str, command: &Vec<String>) {
 {}
 "#,
         command_name,
-        command.join("\n")
+        cmd.run.join("\n")
     );
 
     match create_file(path, &content) {
@@ -54,17 +56,17 @@ fn run_command(command_name: &str) -> Option<i32> {
     };
     delete();
     if status.success() {
-        println!("\nCommand \"{}\" successful", command_name);
+        println!("Command \"{}\" successful", command_name);
         return None;
     } else {
         match status.code() {
             Some(c) => {
-                println!("\nCommand \"{}\" failed, exit code {}", command_name, c);
+                println!("Command \"{}\" failed, exit code {}", command_name, c);
                 return Some(c);
             }
             None => {
                 println!(
-                    "\nCommand \"{}\" failed, no exit code (probably terminated by a signal)",
+                    "Command \"{}\" failed, no exit code (probably terminated by a signal)",
                     command_name
                 );
                 return Some(2);
