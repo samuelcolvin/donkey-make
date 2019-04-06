@@ -12,7 +12,7 @@ pub struct Command {
 
 type FileData = Map<String, Vec<String>>;
 
-pub fn load() -> FileData {
+pub fn load_file() -> FileData {
     let path = Path::new("donkey-make.yaml");
 
     let file = match File::open(&path) {

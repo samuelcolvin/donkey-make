@@ -3,11 +3,17 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process;
-use std::process::{Command};
+use std::process::Command;
 
 static PATH_STR: &str = ".donkey.tmp";
 
-pub fn write(command_name: &str, command: &Vec<String>) {
+pub fn main(command_name: &str, command: &Vec<String>) -> Option<i32> {
+    write(command_name, command);
+    println!(r#"Runnign command "{}"..."#, command_name);
+    run_command(command_name)
+}
+
+fn write(command_name: &str, command: &Vec<String>) {
     let path = Path::new(PATH_STR);
     if path.exists() {
         exit!(
@@ -37,7 +43,7 @@ pub fn write(command_name: &str, command: &Vec<String>) {
     };
 }
 
-pub fn run_command(command_name: &str) -> Option<i32> {
+fn run_command(command_name: &str) -> Option<i32> {
     let command_str = format!("./{}", PATH_STR);
     let status = match Command::new(command_str).status() {
         Ok(t) => t,
@@ -67,7 +73,7 @@ pub fn run_command(command_name: &str) -> Option<i32> {
     };
 }
 
-pub fn delete() {
+fn delete() {
     let path = Path::new(PATH_STR);
     match fs::remove_file(path) {
         Ok(t) => t,
