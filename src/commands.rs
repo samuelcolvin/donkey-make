@@ -30,8 +30,11 @@ pub struct Cmd {
     // TODO context, before
 }
 
-pub fn load_file() -> Config {
-    let path = Path::new("donkey-make.yaml");
+pub fn load_file(file_path: &Option<String>) -> Config {
+    let path = match file_path {
+        Some(p) => Path::new(p),
+        None => Path::new("donkey-make.yaml"),
+    };
 
     let file = match File::open(&path) {
         Ok(t) => t,
