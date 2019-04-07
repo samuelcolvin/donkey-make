@@ -7,6 +7,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process;
 use std::process::Command;
+use ansi_term::Style;
+use ansi_term::Colour::{Red, Green, Yellow};
 
 static PATH_STR: &str = "~donkey-make.tmp";
 
@@ -79,16 +81,17 @@ fn run_command(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &Ve
     };
     delete();
     if status.success() {
-        println!("Command \"{}\" successful", command_name);
+        printlnc!(Green, "Command \"{}\" successful", command_name);
         return None;
     } else {
         match status.code() {
             Some(c) => {
-                println!("Command \"{}\" failed, exit code {}", command_name, c);
+                printlnc!(Yellow, "Command \"{}\" failed, exit code {}", command_name, c);
                 return Some(c);
             }
             None => {
-                println!(
+                printlnc!(
+                    Yellow,
                     "Command \"{}\" failed, no exit code (probably terminated by a signal)",
                     command_name
                 );

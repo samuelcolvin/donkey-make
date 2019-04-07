@@ -1,9 +1,12 @@
-extern crate serde_yaml;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_yaml;
 extern crate clap;
+extern crate ansi_term;
 
 use std::process;
+use ansi_term::Style;
+use ansi_term::Colour::{Red, Green};
 
 #[macro_use]
 mod macros;
@@ -31,7 +34,8 @@ fn main() {
         }
     };
 
-    println!(
+    printlnc!(
+        Green,
         r#"Running command "{}" from "{}"..."#,
         command_name,
         file_path.display()

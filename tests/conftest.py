@@ -36,8 +36,8 @@ class TPath:
 @pytest.fixture(name='test_path')
 def fix_test_path(tmp_path: Path):
     prev_cwd = Path.cwd()
-    os.chdir(tmp_path)
+    os.chdir(str(tmp_path))
     try:
         yield TPath(tmp_path)
     finally:
-        os.chdir(prev_cwd)
+        os.chdir(str(prev_cwd))
