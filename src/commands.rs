@@ -6,6 +6,21 @@ use std::process;
 use serde_yaml::{Value, from_value};
 use serde::de::{Error, Deserialize, Deserializer};
 
+#[derive(Debug, Deserialize)]
+pub struct Config {
+    #[serde(rename = ".env")]
+    #[serde(default)]
+    pub env: Map<String, String>,
+
+    #[serde(rename = ".default")]
+    #[serde(default)]
+    pub default_command: Option<String>,
+
+    #[serde(flatten)]
+    pub commands: Map<String, Cmd>,
+    // TODO context
+}
+
 #[derive(Debug)]
 pub struct Cmd {
     pub run: Vec<String>,
@@ -15,7 +30,7 @@ pub struct Cmd {
     // TODO context, before
 }
 
-pub fn load_file() -> Map<String, Cmd> {
+pub fn load_file() -> Config {
     let path = Path::new("donkey-make.yaml");
 
     let file = match File::open(&path) {
@@ -37,6 +52,7 @@ fn dft_exe() -> String {
     "bash".to_string()
 }
 
+// Command here is copy of Cmd above, used for deserialising maps
 #[derive(Debug, Deserialize)]
 struct Command {
     run: Vec<String>,

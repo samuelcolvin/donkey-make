@@ -1,3 +1,4 @@
+use std::collections::BTreeMap as Map;
 use std::fs;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
@@ -7,12 +8,12 @@ use std::process::{Command};
 
 static PATH_STR: &str = "~donkey-make.tmp";
 
-use crate::commands::Cmd;
+use crate::commands::{Config, Cmd};
 
-pub fn main(command_name: &str, cmd: &Cmd) -> Option<i32> {
+pub fn main(command_name: &str, config: &Config, cmd: &Cmd) -> Option<i32> {
     write(command_name, cmd);
     println!(r#"Running command "{}"..."#, command_name);
-    run_command(command_name, cmd)
+    run_command(command_name, config, cmd)
 }
 
 fn write(command_name: &str, cmd: &Cmd) {
@@ -46,10 +47,21 @@ fn write(command_name: &str, cmd: &Cmd) {
     };
 }
 
-fn run_command(command_name: &str, cmd: &Cmd) -> Option<i32> {
+type StrMap = Map<String, String>;
+
+fn merge(base: &mut StrMap, update: &StrMap) {
+    base.extend(update.into_iter().map(|(k, v)| (k.clone(), v.clone())));
+}
+
+fn run_command(command_name: &str, config: &Config, cmd: &Cmd) -> Option<i32> {
     let command_str = format!("./{}", PATH_STR);
     let mut c = Command::new(command_str);
-    c.args(&cmd.args).envs(&cmd.env);
+
+    let mut env: StrMap = Map::new();
+    merge(&mut env, &config.env);
+    merge(&mut env, &cmd.env);
+
+    c.args(&cmd.args).envs(&env);
     let status = match c.status() {
         Ok(t) => t,
         Err(e) => {
