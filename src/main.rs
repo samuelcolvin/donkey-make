@@ -62,7 +62,7 @@ fn parse_args() -> CliArgs {
     let cli_yaml = load_yaml!("cli.yaml");
     let mut version = env!("CARGO_PKG_VERSION").to_string();
     if let Some(commit) = option_env!("TRAVIS_COMMIT") {
-        version += &format!(" {}", commit);
+        version += &format!(" {}", &commit[..7]);
     }
 
     let raw_args = clap::App::from_yaml(cli_yaml)

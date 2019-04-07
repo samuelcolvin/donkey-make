@@ -1,19 +1,20 @@
+# used by main::parse_args to build the command line argument parser
 name: donkey-make
 args:
-- file:
-    short: f
-    long: file
-    help: File in which to find commands
-    takes_value: true
 - dont_delete_tmp:
     long: dont-delete-tmp
     help: don't delete the temporary file ".donkey-make.tmp" upon completion, by defualt it's deleted
     takes_value: false
+- file:
+    short: f
+    long: file
+    help: File in which to find commands, by default tries donkey-make.ya?ml, donkey.ya?ml and donk.ya?ml
+    takes_value: true
 - command:
     required: false
     index: 1
     help: >
-      Command to execute, if omitted, the defualt command (`.default`) is used,
+      Command to execute, if omitted, the default command (`.default`) is used,
       if that's missing the first command alphabetically is executed.
 - args:
     multiple: true

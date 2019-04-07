@@ -24,13 +24,14 @@ script:
 
 before_deploy:
 - cargo build --release --target $TARGET
-- ls -lh target/$TARGET/release/
+- cp target/$TARGET/release/donkey-make donk
 
 deploy:
   provider: releases
   api_key:
     secure: "nmXx+TuNJhIXM1dyUOA39R+vh4pYxxl+0PPo4CD/epUUETgm24E5u5MKb5rSQI/NknIr8zGrQB9Pp4f69JbXVG6s73nqM6NvjyzK8/Pz5CY9QM7zgCPqngJA8ApNoxIOBg4FkhiN8MGHMEOB5JeRqun8Pd6q6ODa8zoDZn4HtCNUDDlKIBBK5b7Bp9EDjSOZRZq8rILotOoC/xHaBeszyZd3osRuYzyKxoocQYFPSUwd5vfYLrQGJajf49vJb4ebpJ3AeXG+2SVVWEnVHjpKOe3hwbo1gKJekguX9zWMQ/gvbInB3/W5mNLWX5SlyR4kSQFFGtb+vkXftx12VTOuYLez2sM8ee9K+pYM7Ee2r7GJ39z5M89a5U82Fg4FSfiXih0KUKaiO7Jf0ZgfajqOiWC4OmhIYrc/9QloP9fbGBCOPliNS3tx16ykmMU7I347Crrc/RAJ26VWhK9b3SYYRID8ULAymVjhqBi2SEH+lV6rApoiDMR8KiVXvf6EuGjHmZj6YxFB34URUYez2Q2hOBIYvFOjrm51BoawhBejprU+lXPa0NkYow7gpYa7WlXnKyNZ6puUynJsZvPZe5b3WEagLchSF8KWupfydGyKzc++dk7MH6oaLKYIUmv3YcxRpYW6VImffd2Q7WLDKYR0+uYubYEwPivVveg01SThFNw="
-  file: target/$TARGET/release/donkey-make
+  file: donk
   skip_cleanup: true
   on:
     tags: true
+    rust: stable
