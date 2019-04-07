@@ -12,7 +12,6 @@ static PATH_STR: &str = "~donkey-make.tmp";
 
 pub fn main(command_name: &str, config: &Config, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
     write(command_name, cmd);
-    println!(r#"Running command "{}"..."#, command_name);
     run_command(command_name, config, cmd, cli_args)
 }
 
@@ -20,7 +19,7 @@ fn write(command_name: &str, cmd: &Cmd) {
     let path = Path::new(PATH_STR);
     if path.exists() {
         exit!(
-            "Error writing temporary file:\n  {} already exists, donkey-must be running already",
+            "Error writing temporary file:\n  {} already exists, donkey-make must be running already",
             PATH_STR
         );
     }

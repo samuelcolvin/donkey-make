@@ -13,44 +13,26 @@ mod execute;
 use crate::commands::Config;
 
 fn main() {
-    let args = parse_args();
-    let mut file_path: Option<String> = None;
-    let mut cli_command: Option<String> = None;
-    let mut cli_args: Vec<String> = match args.values_of("args") {
-        Some(a) => a.map(|v| v.to_string()).collect(),
-        None => Vec::new(),
-    };
+    let cli = parse_args();
 
-    // special case that donkey-make was used in the shebang line, and the first argument
-    // (aka command) is actually the path to the file
-    if let Some(cc_) = args.value_of("command") {
-        if cc_.starts_with("./") {
-            file_path = Some(cc_.to_string());
-            if cli_args.len() > 0 {
-                cli_command = Some(cli_args.remove(0));
-            }
-        } else {
-            cli_command = Some(cc_.to_string());
-        }
-    }
-    // TODO check --file argument
-
-    let config = commands::load_file(&file_path);
+    let config = commands::load_file(&cli.file_path);
     let keys: Vec<String> = config.commands.keys().cloned().collect();
 
-    let command_name= get_command(&cli_command, &config, &keys);
+    let command_name = get_command(&cli.command, &config, &keys);
     let command = match config.commands.get(&command_name) {
         Some(c) => c,
         None => {
             exit!(
-                "Command \"{}\" not found, options are:\n  {}",
+                "Command \"{}\" not found, commands available are:\n  {}",
                 command_name,
                 keys.join(", ")
             );
         }
     };
 
-    match execute::main(&command_name, &config, &command, &cli_args) {
+    println!(r#"Running command "{}" from "{}"..."#, command_name, cli.file_path);
+
+    match execute::main(&command_name, &config, &command, &cli.args) {
         Some(c) => {
             process::exit(c);
         }
@@ -58,11 +40,25 @@ fn main() {
     };
 }
 
-fn parse_args() -> clap::ArgMatches<'static> {
-    clap::App::new(env!("CARGO_PKG_NAME"))
+#[derive(Debug)]
+pub struct CliArgs {
+    pub file_path: String,
+    pub command: Option<String>,
+    pub args: Vec<String>,
+}
+
+fn parse_args() -> CliArgs {
+    let raw_args = clap::App::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
+        .arg(
+            clap::Arg::with_name("file")
+                .short("f")
+                .long("file")
+                .help("File to find commands in")
+                .takes_value(true),
+        )
         .arg(
             clap::Arg::with_name("command")
                 .help("Command to execute")
@@ -75,7 +71,42 @@ fn parse_args() -> clap::ArgMatches<'static> {
                 .required(false)
                 .help("Extra arguments to pass to the command"),
         )
-        .get_matches()
+        .get_matches();
+
+    let mut file_path_opt: Option<String> = None;
+    let mut command: Option<String> = None;
+    let mut args: Vec<String> = match raw_args.values_of("args") {
+        Some(a) => a.map(|v| v.to_string()).collect(),
+        None => Vec::new(),
+    };
+
+    if let Some(cc_) = raw_args.value_of("command") {
+        if cc_.starts_with("./") {
+            // special case that donkey-make was used in the shebang line, and the first argument
+            // (aka command) is actually the path to the file
+            file_path_opt = Some(cc_.to_string());
+            if args.len() > 0 {
+                command = Some(args.remove(0));
+            }
+        } else {
+            command = Some(cc_.to_string());
+        }
+    }
+
+    if let Some(cli_file_) = raw_args.value_of("file") {
+        file_path_opt = Some(cli_file_.to_string())
+    }
+
+    let file_path: String = match file_path_opt {
+        Some(f) => f,
+        None => "donkey-make.yaml".to_string(),
+    };
+
+    return CliArgs {
+        file_path,
+        command,
+        args,
+    };
 }
 
 fn get_command(cli_command: &Option<String>, config: &Config, keys: &Vec<String>) -> String {
