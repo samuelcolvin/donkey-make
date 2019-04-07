@@ -4,3 +4,4 @@
 /env/
 donkey-make.yaml
 *.py[cod]
+/.pytest_cache/

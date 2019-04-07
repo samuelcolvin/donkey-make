@@ -1,10 +1,5 @@
 language: rust
 
-addons:
-  apt:
-    packages:
-    - python3-pip
-
 dist: xenial
 
 env:
@@ -18,6 +13,8 @@ rust:
 
 before_script:
 - rustup component add rustfmt
+- curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+- python3 get-pip.py --user
 - python3 -m pip install pytest pytest-sugar
 
 script:
