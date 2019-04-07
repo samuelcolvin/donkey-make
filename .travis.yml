@@ -13,12 +13,11 @@ rust:
 
 before_script:
 - rustup component add rustfmt
+- python3 -m pip install pytest pytest-sugar
 
 script:
-- python -V
-- python3 -V
 - cargo fmt --all -- --check
 - cargo build --verbose
-- cargo test --verbose
+- python3 -m pytest tests/
 - cargo build --release --target $TARGET
 - ls -lh target/$TARGET/release/

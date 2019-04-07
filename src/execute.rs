@@ -1,4 +1,4 @@
-use crate::commands::{Cmd, Config};
+use crate::commands::{Cmd, FileConfig};
 
 use std::collections::BTreeMap as Map;
 use std::fs;
@@ -10,7 +10,7 @@ use std::process::Command;
 
 static PATH_STR: &str = "~donkey-make.tmp";
 
-pub fn main(command_name: &str, config: &Config, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
+pub fn main(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
     write(command_name, cmd);
     run_command(command_name, config, cmd, cli_args)
 }
@@ -57,7 +57,7 @@ fn extend_vec(base: &mut StrVec, extend: &StrVec) {
     base.extend(extend.iter().map(|v| v.clone()));
 }
 
-fn run_command(command_name: &str, config: &Config, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
+fn run_command(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
     let command_str = format!("./{}", PATH_STR);
     let mut c = Command::new(command_str);
 

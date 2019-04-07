@@ -1,4 +1,6 @@
 /target
 **/*.rs.bk
-.idea/
+/.idea/
+/env/
 donkey-make.yaml
+*.py[cod]
