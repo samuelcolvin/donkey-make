@@ -7,7 +7,7 @@ use serde::de::{Deserialize, Deserializer, Error};
 use serde_yaml::{from_value, Value};
 
 #[derive(Debug, Deserialize)]
-pub struct FileConfig {
+pub struct FileCofig {
     #[serde(rename = ".env")]
     #[serde(default)]
     pub env: Map<String, String>,
