@@ -10,7 +10,7 @@ mod macros;
 
 mod commands;
 mod execute;
-use crate::commands::Config;
+use crate::commands::FileConfig;
 
 fn main() {
     let cli = parse_args();
@@ -109,7 +109,7 @@ fn parse_args() -> CliArgs {
     };
 }
 
-fn get_command(cli_command: &Option<String>, config: &Config, keys: &Vec<String>) -> String {
+fn get_command(cli_command: &Option<String>, config: &FileConfig, keys: &Vec<String>) -> String {
     if let Some(cli_command_) = cli_command {
         return cli_command_.to_string();
     } else if let Some(default_command) = config.default_command.clone() {

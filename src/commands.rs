@@ -7,7 +7,7 @@ use serde::de::{Deserialize, Deserializer, Error};
 use serde_yaml::{from_value, Value};
 
 #[derive(Debug, Deserialize)]
-pub struct Config {
+pub struct FileConfig {
     #[serde(rename = ".env")]
     #[serde(default)]
     pub env: Map<String, String>,
@@ -30,7 +30,7 @@ pub struct Cmd {
     // TODO context, before
 }
 
-pub fn load_file(file_path: &String) -> Config {
+pub fn load_file(file_path: &String) -> FileConfig {
     let path = Path::new(file_path);
 
     let file = match File::open(&path) {

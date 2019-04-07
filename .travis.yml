@@ -3,22 +3,20 @@ language: rust
 dist: xenial
 
 env:
-- RUST_BACKTRACE=full
-- TARGET=x86_64-unknown-linux-gnu
+  global:
+  - RUST_BACKTRACE=full
+  - TARGET=x86_64-unknown-linux-gnu
 
 rust:
 - stable
 - beta
-- nightly
-
-matrix:
-  allow_failures:
-  - rust: nightly
 
 before_script:
 - rustup component add rustfmt
 
 script:
+- python -V
+- python3 -V
 - cargo fmt --all -- --check
 - cargo build --verbose
 - cargo test --verbose
