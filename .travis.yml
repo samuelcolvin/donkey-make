@@ -1,5 +1,11 @@
 language: rust
 
+dist: xenial
+
+env:
+- RUST_BACKTRACE=full
+- TARGET=x86_64-unknown-linux-gnu
+
 rust:
 - stable
 - beta
@@ -8,3 +14,13 @@ rust:
 matrix:
   allow_failures:
   - rust: nightly
+
+before_script:
+- rustup component add rustfmt
+
+script:
+- cargo fmt --all -- --check
+- cargo build --verbose
+- cargo test --verbose
+- cargo build --release --target $TARGET
+- ls -lh target/$TARGET/release/
