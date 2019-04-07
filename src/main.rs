@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate ansi_term;
+#[macro_use]
 extern crate clap;
 extern crate serde_yaml;
 
@@ -57,29 +58,11 @@ pub struct CliArgs {
 }
 
 fn parse_args() -> CliArgs {
-    let raw_args = clap::App::new(env!("CARGO_PKG_NAME"))
+    let cli_yaml = load_yaml!("cli.yaml");
+    let raw_args = clap::App::from_yaml(cli_yaml)
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
-        .arg(
-            clap::Arg::with_name("file")
-                .short("f")
-                .long("file")
-                .help("File to find commands in")
-                .takes_value(true),
-        )
-        .arg(
-            clap::Arg::with_name("command")
-                .help("Command to execute")
-                .required(false)
-                .index(1),
-        )
-        .arg(
-            clap::Arg::with_name("args")
-                .multiple(true)
-                .required(false)
-                .help("Extra arguments to pass to the command"),
-        )
         .get_matches();
 
     let mut file_path: Option<String> = None;

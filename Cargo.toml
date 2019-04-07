@@ -9,5 +9,5 @@ description = "Make for the 21st century"
 serde = "1.0"
 serde_yaml = "0.8"
 serde_derive = "1.0"
-clap = "2.33.0"
+clap = {version = "2.33.0", features = ["yaml"]}
 ansi_term = "0.11"

@@ -1,0 +1,19 @@
+name: donkey-make
+args:
+- file:
+    short: f
+    long: file
+    help: File in which to find commands
+    takes_value: true
+- command:
+    required: false
+    index: 1
+    help: >
+      Command to execute, if omitted, the defualt command (`.default`) is used,
+      if that's missing the first command alphabetically is executed.
+- args:
+    multiple: true
+    required: false
+    help: >
+      Extra arguments to pass to the command (use "--" if you want to use named arguments,
+      eg. to use "--whatever" you might type `donkey-make my_command -- --whatever`)
