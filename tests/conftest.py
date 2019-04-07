@@ -1,6 +1,7 @@
 import os
+import re
 from pathlib import Path
-from subprocess import run, PIPE, STDOUT
+from subprocess import run, CompletedProcess, PIPE, STDOUT
 
 import pytest
 
@@ -17,10 +18,23 @@ def exe():
     return path.resolve()
 
 
+class Proc:
+    def __init__(self, p: CompletedProcess):
+        self.p = CompletedProcess
+        self.returncode = p.returncode
+        self.stdout = self.strip_ansi(p.stdout)
+        self.stderr = self.strip_ansi(p.stderr)
+
+    @staticmethod
+    def strip_ansi(value):
+        return re.sub('\033\\[((?:\\d|;)*)([a-zA-Z])', '', value)
+
+
 @pytest.fixture(name='run')
 def fix_run(exe):
-    def run_exe(*args):
-        return run([str(exe), *args], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    def run_exe(*args) -> Proc:
+        p = run([str(exe), *args], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        return Proc(p)
 
     return run_exe
 

@@ -1,12 +1,12 @@
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_yaml;
-extern crate clap;
 extern crate ansi_term;
+extern crate clap;
+extern crate serde_yaml;
 
-use std::process;
+use ansi_term::Colour::{Green, Red};
 use ansi_term::Style;
-use ansi_term::Colour::{Red, Green};
+use std::process;
 
 #[macro_use]
 mod macros;
