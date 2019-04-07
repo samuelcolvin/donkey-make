@@ -2,6 +2,7 @@
 **/*.rs.bk
 /.idea/
 /env/
-donkey-make.yaml
+/donkey-make.yaml
 *.py[cod]
 /.pytest_cache/
+/donk.yml

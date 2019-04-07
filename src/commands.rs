@@ -30,9 +30,30 @@ pub struct Cmd {
     // TODO context, before
 }
 
-pub fn load_file(file_path: &String) -> FileConfig {
-    let path = Path::new(file_path);
+const PATH_OPTIONS: [&'static str; 6] = [
+    "donkey-make.yaml",
+    "donkey-make.yml",
+    "donkey.yaml",
+    "donkey.yml",
+    "donk.yaml",
+    "donk.yml",
+];
 
+pub fn find_file(file_path_opt: &Option<String>) -> &Path {
+    if let Some(file_path) = file_path_opt {
+        return Path::new(file_path);
+    }
+    let mut path_option: &Path;
+    for path in PATH_OPTIONS.iter() {
+        path_option = Path::new(path);
+        if path_option.exists() {
+            return path_option;
+        }
+    }
+    exit!("No commands file provided, and no default found, tried:\n  donkey-make.ya?ml, donkey.ya?ml and donk.ya?ml");
+}
+
+pub fn load_file(path: &Path) -> FileConfig {
     let file = match File::open(&path) {
         Ok(t) => t,
         Err(e) => {

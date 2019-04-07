@@ -14,8 +14,9 @@ use crate::commands::FileConfig;
 
 fn main() {
     let cli = parse_args();
+    let file_path = commands::find_file(&cli.file_path);
 
-    let config = commands::load_file(&cli.file_path);
+    let config = commands::load_file(file_path);
     let keys: Vec<String> = config.commands.keys().cloned().collect();
 
     let command_name = get_command(&cli.command, &config, &keys);
@@ -30,7 +31,11 @@ fn main() {
         }
     };
 
-    println!(r#"Running command "{}" from "{}"..."#, command_name, cli.file_path);
+    println!(
+        r#"Running command "{}" from "{}"..."#,
+        command_name,
+        file_path.display()
+    );
 
     match execute::main(&command_name, &config, &command, &cli.args) {
         Some(c) => {
@@ -42,7 +47,7 @@ fn main() {
 
 #[derive(Debug)]
 pub struct CliArgs {
-    pub file_path: String,
+    pub file_path: Option<String>,
     pub command: Option<String>,
     pub args: Vec<String>,
 }
@@ -73,7 +78,7 @@ fn parse_args() -> CliArgs {
         )
         .get_matches();
 
-    let mut file_path_opt: Option<String> = None;
+    let mut file_path: Option<String> = None;
     let mut command: Option<String> = None;
     let mut args: Vec<String> = match raw_args.values_of("args") {
         Some(a) => a.map(|v| v.to_string()).collect(),
@@ -84,7 +89,7 @@ fn parse_args() -> CliArgs {
         if cc_.starts_with("./") {
             // special case that donkey-make was used in the shebang line, and the first argument
             // (aka command) is actually the path to the file
-            file_path_opt = Some(cc_.to_string());
+            file_path = Some(cc_.to_string());
             if args.len() > 0 {
                 command = Some(args.remove(0));
             }
@@ -94,13 +99,8 @@ fn parse_args() -> CliArgs {
     }
 
     if let Some(cli_file_) = raw_args.value_of("file") {
-        file_path_opt = Some(cli_file_.to_string())
+        file_path = Some(cli_file_.to_string())
     }
-
-    let file_path: String = match file_path_opt {
-        Some(f) => f,
-        None => "donkey-make.yaml".to_string(),
-    };
 
     return CliArgs {
         file_path,

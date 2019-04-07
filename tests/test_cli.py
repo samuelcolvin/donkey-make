@@ -29,8 +29,8 @@ def test_tmp_exists(run, test_path: TPath):
     assert p.returncode == 1
     assert p.stdout == ''
     assert p.stderr == (
-        'Error opening donkey-make.yaml:\n'
-        '  No such file or directory (os error 2)\n'
+        'No commands file provided, and no default found, tried:\n'
+        '  donkey-make.ya?ml, donkey.ya?ml and donk.ya?ml\n'
     )
 
 
