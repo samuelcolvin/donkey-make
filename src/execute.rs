@@ -1,19 +1,19 @@
+use crate::commands::{Cmd, Config};
+
 use std::collections::BTreeMap as Map;
 use std::fs;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process;
-use std::process::{Command};
+use std::process::Command;
 
 static PATH_STR: &str = "~donkey-make.tmp";
 
-use crate::commands::{Config, Cmd};
-
-pub fn main(command_name: &str, config: &Config, cmd: &Cmd) -> Option<i32> {
+pub fn main(command_name: &str, config: &Config, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
     write(command_name, cmd);
     println!(r#"Running command "{}"..."#, command_name);
-    run_command(command_name, config, cmd)
+    run_command(command_name, config, cmd, cli_args)
 }
 
 fn write(command_name: &str, cmd: &Cmd) {
@@ -48,20 +48,29 @@ fn write(command_name: &str, cmd: &Cmd) {
 }
 
 type StrMap = Map<String, String>;
+type StrVec = Vec<String>;
 
-fn merge(base: &mut StrMap, update: &StrMap) {
+fn merge_maps(base: &mut StrMap, update: &StrMap) {
     base.extend(update.into_iter().map(|(k, v)| (k.clone(), v.clone())));
 }
 
-fn run_command(command_name: &str, config: &Config, cmd: &Cmd) -> Option<i32> {
+fn extend_vec(base: &mut StrVec, extend: &StrVec) {
+    base.extend(extend.iter().map(|v| v.clone()));
+}
+
+fn run_command(command_name: &str, config: &Config, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
     let command_str = format!("./{}", PATH_STR);
     let mut c = Command::new(command_str);
 
     let mut env: StrMap = Map::new();
-    merge(&mut env, &config.env);
-    merge(&mut env, &cmd.env);
+    merge_maps(&mut env, &config.env);
+    merge_maps(&mut env, &cmd.env);
 
-    c.args(&cmd.args).envs(&env);
+    let mut args: StrVec = Vec::new();
+    extend_vec(&mut args, &cmd.args);
+    extend_vec(&mut args, &cli_args);
+
+    c.args(&args).envs(&env);
     let status = match c.status() {
         Ok(t) => t,
         Err(e) => {

@@ -3,8 +3,8 @@ use std::fs::File;
 use std::path::Path;
 use std::process;
 
-use serde_yaml::{Value, from_value};
-use serde::de::{Error, Deserialize, Deserializer};
+use serde::de::{Deserialize, Deserializer, Error};
+use serde_yaml::{from_value, Value};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -76,7 +76,7 @@ impl<'de> Deserialize<'de> for Cmd {
                 run,
                 args: Vec::new(),
                 env: Map::new(),
-                executable: dft_exe()
+                executable: dft_exe(),
             })
         } else {
             let c: Command = from_value(v).map_err(D::Error::custom)?;

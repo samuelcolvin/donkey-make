@@ -22,6 +22,12 @@ fn parse_args() -> clap::ArgMatches<'static> {
                 .required(false)
                 .index(1),
         )
+        .arg(
+            clap::Arg::with_name("args")
+                .multiple(true)
+                .required(false)
+                .help("Extra arguments to pass to the command"),
+        )
         .get_matches()
 }
 
@@ -29,7 +35,6 @@ fn main() {
     let args = parse_args();
 
     let config = commands::load_file();
-//    println!("{:?}", config);
     let keys: Vec<String> = config.commands.keys().cloned().collect();
 
     let command_name = match args.value_of("command") {
@@ -43,22 +48,29 @@ fn main() {
                     None => {
                         exit!("no commands found");
                     }
-                }
+                },
             }
         }
     };
-//
     let command = match config.commands.get(&command_name) {
         Some(c) => c,
         None => {
-            exit!("Command \"{}\" not found, options are:\n  {}", command_name, keys.join(", "));
+            exit!(
+                "Command \"{}\" not found, options are:\n  {}",
+                command_name,
+                keys.join(", ")
+            );
         }
     };
+    let cli_args: Vec<String> = match args.values_of("args") {
+        Some(a) => a.map(|v| v.to_string()).collect(),
+        None => Vec::new(),
+    };
 
-    match execute::main(&command_name, &config, &command) {
+    match execute::main(&command_name, &config, &command, &cli_args) {
         Some(c) => {
             process::exit(c);
-        },
+        }
         None => {}
     };
 }
