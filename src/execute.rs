@@ -9,12 +9,19 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process;
 use std::process::Command;
+use std::time::{Duration, SystemTime};
 
-static PATH_STR: &str = "~donkey-make.tmp";
+static PATH_STR: &str = ".donkey-make.tmp";
 
-pub fn main(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
+pub fn main(
+    command_name: &str,
+    config: &FileConfig,
+    cmd: &Cmd,
+    cli_args: &Vec<String>,
+    delete_tmp: bool,
+) -> Option<i32> {
     write(command_name, cmd);
-    run_command(command_name, config, cmd, cli_args)
+    run_command(command_name, config, cmd, cli_args, delete_tmp)
 }
 
 fn write(command_name: &str, cmd: &Cmd) {
@@ -48,18 +55,13 @@ fn write(command_name: &str, cmd: &Cmd) {
     };
 }
 
-type StrMap = Map<String, String>;
-type StrVec = Vec<String>;
-
-fn merge_maps(base: &mut StrMap, update: &StrMap) {
-    base.extend(update.into_iter().map(|(k, v)| (k.clone(), v.clone())));
-}
-
-fn extend_vec(base: &mut StrVec, extend: &StrVec) {
-    base.extend(extend.iter().map(|v| v.clone()));
-}
-
-fn run_command(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &Vec<String>) -> Option<i32> {
+fn run_command(
+    command_name: &str,
+    config: &FileConfig,
+    cmd: &Cmd,
+    cli_args: &Vec<String>,
+    delete_tmp: bool,
+) -> Option<i32> {
     let command_str = format!("./{}", PATH_STR);
     let mut c = Command::new(command_str);
 
@@ -72,28 +74,39 @@ fn run_command(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &Ve
     extend_vec(&mut args, &cli_args);
 
     c.args(&args).envs(&env);
+
+    let tic = SystemTime::now();
     let status = match c.status() {
         Ok(t) => t,
         Err(e) => {
-            delete();
+            delete(delete_tmp);
             exit!("failed to execute command ./{}: {}", PATH_STR, e);
         }
     };
-    delete();
+    let toc = SystemTime::now();
+    delete(delete_tmp);
+    let dur_str = format_duration(tic, toc);
     if status.success() {
-        printlnc!(Green, "Command \"{}\" successful", command_name);
+        printlnc!(Green, "Command \"{}\" successful, took {}", command_name, dur_str);
         return None;
     } else {
         match status.code() {
             Some(c) => {
-                printlnc!(Yellow, "Command \"{}\" failed, exit code {}", command_name, c);
+                printlnc!(
+                    Yellow,
+                    "Command \"{}\" failed, took {}, exit code {}",
+                    command_name,
+                    dur_str,
+                    c
+                );
                 return Some(c);
             }
             None => {
                 printlnc!(
                     Yellow,
-                    "Command \"{}\" failed, no exit code (probably terminated by a signal)",
-                    command_name
+                    "Command \"{}\" failed, took {}, no exit code (probably terminated by a signal)",
+                    command_name,
+                    dur_str
                 );
                 return Some(2);
             }
@@ -101,14 +114,16 @@ fn run_command(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &Ve
     };
 }
 
-fn delete() {
-    let path = Path::new(PATH_STR);
-    match fs::remove_file(path) {
-        Ok(t) => t,
-        Err(e) => {
-            exit!("Error deleting temporary file {}, {}", PATH_STR, e);
-        }
-    };
+fn delete(delete: bool) {
+    if delete {
+        let path = Path::new(PATH_STR);
+        match fs::remove_file(path) {
+            Ok(t) => t,
+            Err(e) => {
+                exit!("Error deleting temporary file {}, {}", PATH_STR, e);
+            }
+        };
+    }
 }
 
 fn create_file(path: &Path, content: &str) -> std::io::Result<()> {
@@ -120,4 +135,28 @@ fn create_file(path: &Path, content: &str) -> std::io::Result<()> {
     perms.set_mode(mode | 0o100);
     f.set_permissions(perms)?;
     return Ok(());
+}
+
+type StrMap = Map<String, String>;
+type StrVec = Vec<String>;
+
+fn merge_maps(base: &mut StrMap, update: &StrMap) {
+    base.extend(update.into_iter().map(|(k, v)| (k.clone(), v.clone())));
+}
+
+fn extend_vec(base: &mut StrVec, extend: &StrVec) {
+    base.extend(extend.iter().map(|v| v.clone()));
+}
+
+fn format_duration(tic: SystemTime, toc: SystemTime) -> String {
+    let diff = toc.duration_since(tic).unwrap();
+
+    if diff < Duration::from_secs(1) {
+        return format!("{:0.0}ms", diff.subsec_millis());
+    } else if diff < Duration::from_secs(100) {
+        let diff_s = diff.as_secs() as f64 + diff.subsec_millis() as f64 / 1000.0;
+        return format!("{:0.2}s", diff_s);
+    } else {
+        return format!("{}s", diff.as_secs());
+    }
 }

@@ -42,7 +42,7 @@ fn main() {
         file_path.display()
     );
 
-    match execute::main(&command_name, &config, &command, &cli.args) {
+    match execute::main(&command_name, &config, &command, &cli.args, cli.delete_tmp) {
         Some(c) => {
             process::exit(c);
         }
@@ -55,12 +55,18 @@ pub struct CliArgs {
     pub file_path: Option<String>,
     pub command: Option<String>,
     pub args: Vec<String>,
+    pub delete_tmp: bool,
 }
 
 fn parse_args() -> CliArgs {
     let cli_yaml = load_yaml!("cli.yaml");
+    let mut version = env!("CARGO_PKG_VERSION").to_string();
+    if let Some(commit) = option_env!("TRAVIS_COMMIT") {
+        version += &format!(" {}", commit);
+    }
+
     let raw_args = clap::App::from_yaml(cli_yaml)
-        .version(env!("CARGO_PKG_VERSION"))
+        .version(version.as_str())
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
         .get_matches();
@@ -93,6 +99,7 @@ fn parse_args() -> CliArgs {
         file_path,
         command,
         args,
+        delete_tmp: !raw_args.is_present("dont_delete_tmp"),
     };
 }
 

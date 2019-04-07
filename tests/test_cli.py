@@ -1,3 +1,5 @@
+import re
+
 from .conftest import TPath
 
 
@@ -15,16 +17,16 @@ def test_simple(run, test_path: TPath):
     """)
     p = run()
     assert p.returncode == 0
-    assert p.stdout == (
+    assert re.sub(r'\d+ms', 'XXms', p.stdout) == (
         'Running command "foo" from "donkey-make.yaml"...\n'
         'this is a test\n'
-        'Command "foo" successful\n'
+        'Command "foo" successful, took XXms\n'
     )
     assert p.stderr == ''
 
 
 def test_tmp_exists(run, test_path: TPath):
-    test_path.write_file('~donkey-make.tmp', '.')
+    test_path.write_file('.donkey-make.tmp', '.')
     p = run()
     assert p.returncode == 1
     assert p.stdout == ''
