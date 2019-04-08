@@ -8,6 +8,8 @@ extern crate serde_yaml;
 #[macro_use]
 mod macros;
 
+use std::string::ToString;
+
 use ansi_term::Colour::Green;
 
 use crate::commands::{Cmd, FileConfig};
@@ -61,7 +63,7 @@ fn parse_args() -> CliArgs {
     let mut file_path: Option<String> = None;
     let mut command: Option<String> = None;
     let mut args: Vec<String> = match raw_args.values_of("args") {
-        Some(a) => a.map(|v| v.to_string()).collect(),
+        Some(a) => a.map(ToString::to_string).collect(),
         None => Vec::new(),
     };
 
