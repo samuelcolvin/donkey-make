@@ -5,4 +5,4 @@
 /donkey-make.yaml
 *.py[cod]
 /.pytest_cache/
-/donk.yml
+/sandbox/

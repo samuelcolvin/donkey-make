@@ -1,0 +1,16 @@
+#!/usr/bin/env donk
+lint:
+  - cargo fmt --all -- --check
+
+fmt:
+  - cargo fmt
+
+test:
+  - python3 -m pytest tests/
+
+all:
+  - set -e -x
+  - cargo fmt --all -- --check
+  - python3 -m pytest tests/
+
+.default: all
