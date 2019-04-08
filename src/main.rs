@@ -5,12 +5,10 @@ extern crate ansi_term;
 extern crate clap;
 extern crate serde_yaml;
 
-use ansi_term::Colour::{Green, Red};
-use ansi_term::Style;
-use std::process;
-
 #[macro_use]
 mod macros;
+
+use ansi_term::Colour::Green;
 
 mod commands;
 mod execute;
@@ -44,7 +42,7 @@ fn main() {
 
     match execute::main(&command_name, &config, &command, &cli.args, cli.delete_tmp) {
         Some(c) => {
-            process::exit(c);
+            std::process::exit(c);
         }
         None => {}
     };

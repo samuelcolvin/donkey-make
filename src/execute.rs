@@ -1,17 +1,16 @@
-use crate::commands::{Cmd, FileConfig};
-
-use ansi_term::Colour::{Green, Red, Yellow};
-use ansi_term::Style;
 use std::collections::BTreeMap as Map;
 use std::fs;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-use std::process;
 use std::process::Command;
 use std::time::{Duration, SystemTime};
 
-static PATH_STR: &str = ".donkey-make.tmp";
+use ansi_term::Colour::{Green, Yellow};
+
+use crate::commands::{Cmd, FileConfig};
+
+const PATH_STR: &str = ".donkey-make.tmp";
 
 pub fn main(
     command_name: &str,

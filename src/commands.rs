@@ -1,8 +1,6 @@
-use ansi_term::Colour::Red;
 use std::collections::BTreeMap as Map;
 use std::fs::File;
 use std::path::Path;
-use std::process;
 
 use serde::de::{Deserialize, Deserializer, Error};
 use serde_yaml::{from_value, Value};
