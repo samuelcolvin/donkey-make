@@ -17,7 +17,7 @@ def test_simple(run, test_path: TPath):
     """)
     p = run()
     assert p.returncode == 0
-    assert re.sub(r'\d+ms', 'XXms', p.stdout) == (
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "foo" from "donkey-make.yaml"...\n'
         'this is a test\n'
         'Command "foo" successful, took XXms\n'
