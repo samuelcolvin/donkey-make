@@ -10,9 +10,10 @@ mod macros;
 
 use ansi_term::Colour::Green;
 
+use crate::commands::{Cmd, FileConfig};
+
 mod commands;
 mod execute;
-use crate::commands::FileConfig;
 
 fn main() {
     let cli = parse_args();
@@ -21,17 +22,8 @@ fn main() {
     let config = commands::load_file(file_path);
     let keys: Vec<String> = config.commands.keys().cloned().collect();
 
-    let command_name = get_command(&cli.command, &config, &keys);
-    let command = match config.commands.get(&command_name) {
-        Some(c) => c,
-        None => {
-            exit!(
-                "Command \"{}\" not found, commands available are:\n  {}",
-                command_name,
-                keys.join(", ")
-            );
-        }
-    };
+    let command_name = get_command_name(&cli.command, &config, &keys);
+    let command = get_command(&config, &command_name, &keys);
 
     printlnc!(
         Green,
@@ -101,14 +93,27 @@ fn parse_args() -> CliArgs {
     };
 }
 
-fn get_command(cli_command: &Option<String>, config: &FileConfig, keys: &Vec<String>) -> String {
+fn get_command_name(cli_command: &Option<String>, config: &FileConfig, keys: &Vec<String>) -> String {
     if let Some(cli_command_) = cli_command {
-        return cli_command_.to_string();
+        cli_command_.to_string()
     } else if let Some(default_command) = config.default_command.clone() {
-        return default_command;
+        default_command
     } else if let Some(first_command) = keys.first() {
-        return first_command.to_string();
+        first_command.to_string()
     } else {
         exit!("no commands found");
+    }
+}
+
+fn get_command<'a>(config: &'a FileConfig, command_name: &String, keys: &Vec<String>) -> &'a Cmd {
+    match config.commands.get(command_name) {
+        Some(c) => c,
+        None => {
+            exit!(
+                "Command \"{}\" not found, commands available are:\n  {}",
+                command_name,
+                keys.join(", ")
+            );
+        }
     }
 }
