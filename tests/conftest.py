@@ -10,7 +10,11 @@ THIS_DIR = Path(__file__).parent
 
 @pytest.fixture(scope='session')
 def exe():
-    p = run(['cargo', 'build'], stdout=PIPE, stderr=STDOUT, universal_newlines=True)
+    args = 'cargo', 'build'
+    target = os.getenv('TARGET')
+    if target:
+        args += '--target', target
+    p = run(args, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
     if p.returncode != 0:
         raise RuntimeError('cargo build failed:\n' + p.stdout)
     path = THIS_DIR / '../target/debug/donkey-make'

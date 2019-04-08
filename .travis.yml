@@ -20,7 +20,7 @@ before_script:
 
 script:
 - cargo fmt --all -- --check
-- cargo clippy -- -D warnings
+- cargo clippy --target $TARGET -- -D warnings
 - cargo build --target $TARGET
 - python3 -m pytest tests/
 
