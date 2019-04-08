@@ -1,6 +1,8 @@
 #!/usr/bin/env donk
 lint:
+- set -e -x
 - cargo fmt --all -- --check
+- cargo clippy -- -D warnings
 
 fmt:
 - cargo fmt
@@ -11,6 +13,7 @@ test:
 all:
 - set -e -x
 - cargo fmt --all -- --check
+- cargo clippy -- -D warnings
 - python3 -m pytest tests/
 
 .default: all

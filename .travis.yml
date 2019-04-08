@@ -13,12 +13,14 @@ rust:
 
 before_script:
 - rustup component add rustfmt
+- rustup component add clippy
 - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 - python3 get-pip.py --user
 - python3 -m pip install --user pytest
 
 script:
 - cargo fmt --all -- --check
+- cargo clippy -- -D warnings
 - cargo build --target $TARGET
 - python3 -m pytest tests/
 

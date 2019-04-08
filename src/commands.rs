@@ -29,7 +29,7 @@ pub struct Cmd {
     // TODO context, before
 }
 
-const PATH_OPTIONS: [&'static str; 6] = [
+const PATH_OPTIONS: [&str; 6] = [
     "donkey-make.yaml",
     "donkey-make.yml",
     "donkey.yaml",

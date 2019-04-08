@@ -32,11 +32,8 @@ fn main() {
         file_path.display()
     );
 
-    match execute::main(&command_name, &config, &command, &cli.args, cli.delete_tmp) {
-        Some(c) => {
-            std::process::exit(c);
-        }
-        None => {}
+    if let Some(c) = execute::main(&command_name, &config, &command, &cli.args, cli.delete_tmp) {
+        std::process::exit(c);
     };
 }
 
@@ -73,7 +70,7 @@ fn parse_args() -> CliArgs {
             // special case that donkey-make was used in the shebang line, and the first argument
             // (aka command) is actually the path to the file
             file_path = Some(cc_.to_string());
-            if args.len() > 0 {
+            if !args.is_empty() {
                 command = Some(args.remove(0));
             }
         } else {
@@ -85,15 +82,15 @@ fn parse_args() -> CliArgs {
         file_path = Some(cli_file_.to_string())
     }
 
-    return CliArgs {
+    CliArgs {
         file_path,
         command,
         args,
         delete_tmp: !raw_args.is_present("dont_delete_tmp"),
-    };
+    }
 }
 
-fn get_command_name(cli_command: &Option<String>, config: &FileConfig, keys: &Vec<String>) -> String {
+fn get_command_name(cli_command: &Option<String>, config: &FileConfig, keys: &[String]) -> String {
     if let Some(cli_command_) = cli_command {
         cli_command_.to_string()
     } else if let Some(default_command) = config.default_command.clone() {
@@ -105,7 +102,7 @@ fn get_command_name(cli_command: &Option<String>, config: &FileConfig, keys: &Ve
     }
 }
 
-fn get_command<'a>(config: &'a FileConfig, command_name: &String, keys: &Vec<String>) -> &'a Cmd {
+fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) -> &'a Cmd {
     match config.commands.get(command_name) {
         Some(c) => c,
         None => {
