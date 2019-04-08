@@ -17,9 +17,9 @@ def exe():
     p = run(args, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
     if p.returncode != 0:
         raise RuntimeError('cargo build failed:\n' + p.stdout)
-    path = THIS_DIR / '../target/debug/donkey-make'
-    assert path.exists()
-    return path.resolve()
+    bin_path = THIS_DIR / '../target{}/debug/donkey-make'.format('/' + target if target else '')
+    assert bin_path.exists()
+    return bin_path.resolve()
 
 
 class Proc:
