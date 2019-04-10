@@ -10,22 +10,36 @@ use std::time::{Duration, SystemTime};
 
 use ansi_term::Colour::{Green, Yellow};
 
-use crate::commands::{Cmd, FileConfig};
+use crate::commands::{Cmd, FileConfig, Mod};
 
 const PATH_STR: &str = ".donkey-make.tmp";
 const BAR: &str = "==========================================================================================";
 
 pub fn main(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &[String], delete_tmp: bool) -> Option<i32> {
     let mut args: Vec<String> = vec![PATH_STR.to_string()];
-    extend_vec(&mut args, &cmd.args);
-    extend_vec(&mut args, &cli_args);
+    args.extend(cmd.args.iter().cloned());
+    args.extend(cli_args.iter().cloned());
 
     let mut env: StrMap = Map::new();
     merge_maps(&mut env, &config.env);
     merge_maps(&mut env, &cmd.env);
 
     write(command_name, cmd, &args, &env);
-    run_command(command_name, cmd, &args, &env, delete_tmp)
+    match run_command(command_name, cmd, &args, &env) {
+        Ok(t) => {
+            delete(delete_tmp);
+            t
+        }
+        Err(e) => {
+            delete(delete_tmp);
+            exit!(
+                "failed to execute command \"{} {}\": {}",
+                cmd.executable,
+                args.join(" "),
+                e
+            );
+        }
+    }
 }
 
 fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) {
@@ -50,7 +64,17 @@ fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) {
     ];
     let comment = if cmd.executable.starts_with("node") { "//" } else { "#" };
     let sep = format!("\n{} ", comment);
-    let content = format!("{} {}\n{}", comment, prefix.join(&sep), cmd.run.join("\n"));
+
+    let mut smart_script: Vec<String> = vec![];
+    let script: &Vec<String> = match cmd.modifier {
+        Mod::SmartBash => {
+            build_smart_script(&mut smart_script, &cmd.run);
+            &smart_script
+        }
+        _ => &cmd.run,
+    };
+
+    let content = format!("{} {}\n{}", comment, prefix.join(&sep), script.join("\n"));
 
     match create_file(path, &content) {
         Ok(t) => t,
@@ -60,30 +84,18 @@ fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) {
     };
 }
 
-fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap, delete_tmp: bool) -> Option<i32> {
+fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> Result<Option<i32>, Error> {
     let mut c = Command::new(&cmd.executable);
     c.args(args).envs(env);
-    let sig = register_signals().unwrap();
+    let sig = register_signals()?;
 
     let tic = SystemTime::now();
-    let status = match c.status() {
-        Ok(t) => t,
-        Err(e) => {
-            delete(delete_tmp);
-            exit!(
-                "failed to execute command \"{} {}\": {}",
-                cmd.executable,
-                args.join(" "),
-                e
-            );
-        }
-    };
+    let status = c.status()?;
     let toc = SystemTime::now();
-    delete(delete_tmp);
     let dur_str = format_duration(tic, toc);
     if status.success() {
         printlnc!(Green, "Command \"{}\" successful, took {}", command_name, dur_str);
-        None
+        Ok(None)
     } else {
         match status.code() {
             Some(c) => {
@@ -94,7 +106,7 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap, del
                     dur_str,
                     c
                 );
-                Some(c)
+                Ok(Some(c))
             }
             None => {
                 printlnc!(
@@ -104,7 +116,7 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap, del
                     signal_name(sig),
                     dur_str
                 );
-                Some(2)
+                Ok(Some(2))
             }
         }
     }
@@ -154,14 +166,24 @@ fn signal_name(sig: Signal) -> &'static str {
     }
 }
 
+fn build_smart_script(new_script: &mut Vec<String>, original: &[String]) {
+    // https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html
+    new_script.push("set -ex".to_string());
+    if original.len() == 1 {
+        if let Some(line) = original.first() {
+            if !line.contains('$') {
+                new_script.push(format!("{} $@", line));
+                return;
+            }
+        }
+    }
+    new_script.extend(original.iter().cloned());
+}
+
 type StrMap = Map<String, String>;
 
 fn merge_maps(base: &mut StrMap, update: &StrMap) {
     base.extend(update.iter().map(|(k, v)| (k.clone(), v.clone())));
-}
-
-fn extend_vec(base: &mut Vec<String>, extend: &[String]) {
-    base.extend(extend.iter().cloned());
 }
 
 fn format_duration(tic: SystemTime, toc: SystemTime) -> String {

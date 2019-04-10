@@ -20,13 +20,53 @@ pub struct FileConfig {
     // TODO context
 }
 
+const BASH_SMART: &str = "bash-smart";
+const BASH: &str = "bash";
+
+#[derive(Debug)]
+pub enum Mod {
+    None,
+    SmartBash,
+}
+
 #[derive(Debug)]
 pub struct Cmd {
     pub run: Vec<String>,
     pub args: Vec<String>,
     pub env: Map<String, String>,
     pub executable: String,
+    pub modifier: Mod,
     // TODO context, before
+}
+
+impl Cmd {
+    fn new(run: Vec<String>, args: Option<Vec<String>>, env: Option<Map<String, String>>, ex: Option<String>) -> Cmd {
+        let mut modifier: Mod = Mod::SmartBash;
+        let executable: String = match ex {
+            Some(e) => {
+                if e == BASH_SMART {
+                    BASH.to_string()
+                } else {
+                    modifier = Mod::None;
+                    e
+                }
+            }
+            None => BASH.to_string(),
+        };
+        Cmd {
+            run,
+            args: match args {
+                Some(t) => t,
+                None => Vec::new(),
+            },
+            env: match env {
+                Some(t) => t,
+                None => Map::new(),
+            },
+            executable,
+            modifier,
+        }
+    }
 }
 
 const PATH_OPTIONS: [&str; 6] = [
@@ -69,7 +109,7 @@ pub fn load_file(path: &Path) -> FileConfig {
 }
 
 fn dft_exe() -> String {
-    "bash".to_string()
+    BASH_SMART.to_string()
 }
 
 // Command here is copy of Cmd above, used for deserialising maps
@@ -92,20 +132,10 @@ impl<'de> Deserialize<'de> for Cmd {
         let v: Value = Deserialize::deserialize(deserializer)?;
         if v.is_sequence() {
             let run: Vec<String> = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd {
-                run,
-                args: Vec::new(),
-                env: Map::new(),
-                executable: dft_exe(),
-            })
+            Ok(Cmd::new(run, None, None, None))
         } else {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd {
-                run: c.run,
-                args: c.args,
-                env: c.env,
-                executable: c.executable,
-            })
+            Ok(Cmd::new(c.run, Some(c.args), Some(c.env), Some(c.executable)))
         }
     }
 }

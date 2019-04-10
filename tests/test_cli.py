@@ -10,7 +10,7 @@ def test_help(run):
     assert p.stderr == ''
 
 
-def test_simple(run, test_path: TPath):
+def test_smart_script(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', """
     foo:
     - 'echo "this is a test"'
@@ -22,7 +22,7 @@ def test_simple(run, test_path: TPath):
         'this is a test\n'
         'Command "foo" successful, took XXms\n'
     )
-    assert p.stderr == ''
+    assert p.stderr == "+ echo 'this is a test'\n"
 
 
 def test_tmp_exists(run, test_path: TPath):
