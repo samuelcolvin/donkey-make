@@ -11,10 +11,6 @@ pub struct FileConfig {
     #[serde(default)]
     pub env: Map<String, String>,
 
-    #[serde(rename = ".default")]
-    #[serde(default)]
-    pub default_command: Option<String>,
-
     #[serde(flatten)]
     pub commands: Map<String, Cmd>,
     // TODO context
@@ -42,7 +38,7 @@ pub struct Cmd {
 impl Cmd {
     fn new(run: Vec<String>, args: Option<Vec<String>>, env: Option<Map<String, String>>, ex: Option<String>) -> Cmd {
         let mut modifier: Mod = Mod::SmartBash;
-        let executable: String = match ex {
+        let executable = match ex {
             Some(e) => {
                 if e == BASH_SMART {
                     BASH.to_string()
@@ -82,9 +78,8 @@ pub fn find_file(file_path_opt: &Option<String>) -> &Path {
     if let Some(file_path) = file_path_opt {
         return Path::new(file_path);
     }
-    let mut path_option: &Path;
     for path in PATH_OPTIONS.iter() {
-        path_option = Path::new(path);
+        let path_option: &Path = Path::new(path);
         if path_option.exists() {
             return path_option;
         }

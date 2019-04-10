@@ -15,10 +15,10 @@ def test_smart_script(run, test_path: TPath):
     foo:
     - 'echo "this is a test"'
     """)
-    p = run()
+    p = run('foo')
     assert p.returncode == 0
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
-        'Running command "foo" from "donkey-make.yaml"...\n'
+        'Running command "foo" from donkey-make.yaml...\n'
         'this is a test\n'
         'Command "foo" successful, took XXms\n'
     )

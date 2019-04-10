@@ -9,6 +9,7 @@ extern crate signal_hook;
 #[macro_use]
 mod macros;
 
+use std::path::Path;
 use std::string::ToString;
 
 use ansi_term::Colour::Green;
@@ -25,12 +26,18 @@ fn main() {
     let config = commands::load_file(file_path);
     let keys: Vec<String> = config.commands.keys().cloned().collect();
 
-    let command_name = get_command_name(&cli.command, &config, &keys);
+    let command_name = match cli.command {
+        Some(c) => c,
+        _ => {
+            help_message(&file_path, &keys);
+            return;
+        }
+    };
     let command = get_command(&config, &command_name, &keys);
 
     printlnc!(
         Green,
-        r#"Running command "{}" from "{}"..."#,
+        r#"Running command "{}" from {}..."#,
         command_name,
         file_path.display()
     );
@@ -50,13 +57,8 @@ pub struct CliArgs {
 
 fn parse_args() -> CliArgs {
     let cli_yaml = load_yaml!("cli.yaml");
-    let mut version = env!("CARGO_PKG_VERSION").to_string();
-    if let Some(commit) = option_env!("TRAVIS_COMMIT") {
-        version += &format!(" {}", &commit[..7]);
-    }
-
     let raw_args = clap::App::from_yaml(cli_yaml)
-        .version(version.as_str())
+        .version(get_version().as_str())
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
         .get_matches();
@@ -93,18 +95,6 @@ fn parse_args() -> CliArgs {
     }
 }
 
-fn get_command_name(cli_command: &Option<String>, config: &FileConfig, keys: &[String]) -> String {
-    if let Some(cli_command_) = cli_command {
-        cli_command_.to_string()
-    } else if let Some(default_command) = config.default_command.clone() {
-        default_command
-    } else if let Some(first_command) = keys.first() {
-        first_command.to_string()
-    } else {
-        exit!("no commands found");
-    }
-}
-
 fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) -> &'a Cmd {
     match config.commands.get(command_name) {
         Some(c) => c,
@@ -116,4 +106,22 @@ fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) 
             );
         }
     }
+}
+
+fn help_message(file_path: &Path, keys: &[String]) {
+    printlnc!(
+        Green,
+        "donkey-make {}\nCommands available from {}:\n  {}",
+        get_version(),
+        file_path.display(),
+        keys.join("\n  ") // TODO prettier with description and colour
+    );
+}
+
+fn get_version() -> String {
+    let mut version = env!("CARGO_PKG_VERSION").to_string();
+    if let Some(commit) = option_env!("TRAVIS_COMMIT") {
+        version += &format!(" {}", &commit[..7]);
+    }
+    version
 }
