@@ -1,8 +1,11 @@
 use std::collections::BTreeMap as Map;
 use std::fs;
+use std::io::Error;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use ansi_term::Colour::{Green, Yellow};
@@ -60,6 +63,7 @@ fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) {
 fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap, delete_tmp: bool) -> Option<i32> {
     let mut c = Command::new(&cmd.executable);
     c.args(args).envs(env);
+    let sig = register_signals().unwrap();
 
     let tic = SystemTime::now();
     let status = match c.status() {
@@ -95,8 +99,9 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap, del
             None => {
                 printlnc!(
                     Yellow,
-                    "Command \"{}\" failed, took {}, no exit code (probably terminated by a signal)",
+                    "Command \"{}\" kill with signal {} after {}",
                     command_name,
+                    signal_name(sig),
                     dur_str
                 );
                 Some(2)
@@ -121,6 +126,32 @@ fn create_file(path: &Path, content: &str) -> std::io::Result<()> {
     let mut f = fs::File::create(path)?;
     f.write_all(content.as_bytes())?;
     Ok(())
+}
+
+struct Signal {
+    int: Arc<AtomicBool>,
+    term: Arc<AtomicBool>,
+}
+
+fn register_signals() -> Result<Signal, Error> {
+    let sig = Signal {
+        int: Arc::new(AtomicBool::new(false)),
+        term: Arc::new(AtomicBool::new(false)),
+    };
+    // TODO this doesn't forward the signal to the child, but generally the terminal does that for us
+    signal_hook::flag::register(signal_hook::SIGINT, Arc::clone(&sig.int))?;
+    signal_hook::flag::register(signal_hook::SIGTERM, Arc::clone(&sig.term))?;
+    Ok(sig)
+}
+
+fn signal_name(sig: Signal) -> &'static str {
+    if sig.int.load(Ordering::Relaxed) {
+        "SIGINT"
+    } else if sig.term.load(Ordering::Relaxed) {
+        "SIGTERM"
+    } else {
+        "UNKNOWN"
+    }
 }
 
 type StrMap = Map<String, String>;

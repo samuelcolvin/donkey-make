@@ -2,6 +2,7 @@
 name: donkey-make
 args:
 - dont_delete_tmp:
+    short: t
     long: dont-delete-tmp
     help: don't delete the temporary file ".donkey-make.tmp" upon completion, by defualt it's deleted
     takes_value: false

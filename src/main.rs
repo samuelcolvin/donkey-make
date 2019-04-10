@@ -4,6 +4,7 @@ extern crate ansi_term;
 #[macro_use]
 extern crate clap;
 extern crate serde_yaml;
+extern crate signal_hook;
 
 #[macro_use]
 mod macros;

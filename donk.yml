@@ -16,4 +16,10 @@ all:
 - cargo clippy -- -D warnings
 - python3 -m pytest tests/
 
+release:
+  - rm -rf target/release/
+  - export TRAVIS_COMMIT="$(git rev-parse HEAD)"
+  - cargo build --release
+  - cp target/release/donkey-make donk
+
 .default: all

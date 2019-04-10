@@ -12,8 +12,8 @@ rust:
 - beta
 
 before_script:
-- rustup component add rustfmt-preview
-- rustup component add clippy-preview
+- rustup component add rustfmt
+- rustup component add clippy
 - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 - python3 get-pip.py --user
 - python3 -m pip install --user pytest
