@@ -32,7 +32,7 @@ def test_tmp_exists(run, test_path: TPath):
     assert p.stdout == ''
     assert p.stderr == (
         'No commands file provided, and no default found, tried:\n'
-        '  donkey-make.ya?ml, donkey.ya?ml and donk.ya?ml\n'
+        '  donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml\n'
     )
 
 

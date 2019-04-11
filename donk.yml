@@ -1,19 +1,23 @@
 #!/usr/bin/env donk
 lint:
-- set -e -x
-- cargo fmt --all -- --check
-- cargo clippy -- -D warnings
+  run:
+  - cargo fmt --all -- --check
+  - cargo clippy -- -D warnings
+  description: 'run both cargo fmt and cargo clippy and in "check" mode'
 
 fmt:
 - cargo fmt
 
 test:
-- python3 -m pytest tests/
+  run:
+  - source env/bin/activate
+  - python3 -m pytest tests/
+  description: run tests
 
 all:
-- set -e -x
 - cargo fmt --all -- --check
 - cargo clippy -- -D warnings
+- source env/bin/activate
 - python3 -m pytest tests/
 
 release:

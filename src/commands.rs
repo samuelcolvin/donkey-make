@@ -31,24 +31,32 @@ pub struct Cmd {
     pub args: Vec<String>,
     pub env: Map<String, String>,
     pub executable: String,
+    pub description: String,
     pub modifier: Mod,
     // TODO context, before
 }
 
 impl Cmd {
-    fn new(run: Vec<String>, args: Option<Vec<String>>, env: Option<Map<String, String>>, ex: Option<String>) -> Cmd {
+    fn new(
+        run: Vec<String>,
+        args: Option<Vec<String>>,
+        env: Option<Map<String, String>>,
+        ex: Option<String>,
+        desc: Option<String>,
+    ) -> Cmd {
         let mut modifier: Mod = Mod::SmartBash;
-        let executable = match ex {
+        let executable = match &ex {
             Some(e) => {
                 if e == BASH_SMART {
                     BASH.to_string()
                 } else {
                     modifier = Mod::None;
-                    e
+                    e.clone()
                 }
             }
             None => BASH.to_string(),
         };
+        let description = build_description(&run, &ex, desc);
         Cmd {
             run,
             args: match args {
@@ -60,18 +68,19 @@ impl Cmd {
                 None => Map::new(),
             },
             executable,
+            description,
             modifier,
         }
     }
 }
 
 const PATH_OPTIONS: [&str; 6] = [
-    "donkey-make.yaml",
-    "donkey-make.yml",
-    "donkey.yaml",
-    "donkey.yml",
-    "donk.yaml",
     "donk.yml",
+    "donk.yaml",
+    "donkey.yml",
+    "donkey.yaml",
+    "donkey-make.yml",
+    "donkey-make.yaml",
 ];
 
 pub fn find_file(file_path_opt: &Option<String>) -> &Path {
@@ -84,7 +93,7 @@ pub fn find_file(file_path_opt: &Option<String>) -> &Path {
             return path_option;
         }
     }
-    exit!("No commands file provided, and no default found, tried:\n  donkey-make.ya?ml, donkey.ya?ml and donk.ya?ml");
+    exit!("No commands file provided, and no default found, tried:\n  donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml");
 }
 
 pub fn load_file(path: &Path) -> FileConfig {
@@ -103,6 +112,27 @@ pub fn load_file(path: &Path) -> FileConfig {
     }
 }
 
+fn build_description(run: &[String], ex: &Option<String>, desc: Option<String>) -> String {
+    let main = match desc {
+        Some(d) => d,
+        None => match run.first() {
+            Some(d) => d.clone(),
+            None => "".to_string(),
+        },
+    };
+    let mut ex_str = "".to_string();
+    if let Some(e) = ex {
+        if e != BASH_SMART {
+            ex_str = format!("{}, ", e);
+        }
+    }
+    let lines = match run.len() {
+        1 => "1 line".to_string(),
+        c => format!("{} lines", c),
+    };
+    format!("{} ({}{})", main, ex_str, lines)
+}
+
 fn dft_exe() -> String {
     BASH_SMART.to_string()
 }
@@ -117,6 +147,7 @@ struct Command {
     env: Map<String, String>,
     #[serde(default = "dft_exe")]
     executable: String,
+    pub description: Option<String>,
 }
 
 impl<'de> Deserialize<'de> for Cmd {
@@ -127,10 +158,16 @@ impl<'de> Deserialize<'de> for Cmd {
         let v: Value = Deserialize::deserialize(deserializer)?;
         if v.is_sequence() {
             let run: Vec<String> = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(run, None, None, None))
+            Ok(Cmd::new(run, None, None, None, None))
         } else {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(c.run, Some(c.args), Some(c.env), Some(c.executable)))
+            Ok(Cmd::new(
+                c.run,
+                Some(c.args),
+                Some(c.env),
+                Some(c.executable),
+                c.description,
+            ))
         }
     }
 }

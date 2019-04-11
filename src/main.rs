@@ -12,7 +12,8 @@ mod macros;
 use std::path::Path;
 use std::string::ToString;
 
-use ansi_term::Colour::Green;
+use ansi_term::Colour::{Cyan, Green, Yellow};
+use ansi_term::Style;
 
 use crate::commands::{Cmd, FileConfig};
 
@@ -29,7 +30,7 @@ fn main() {
     let command_name = match cli.command {
         Some(c) => c,
         _ => {
-            help_message(&file_path, &keys);
+            help_message(&file_path, &config, &keys);
             return;
         }
     };
@@ -57,10 +58,14 @@ pub struct CliArgs {
 
 fn parse_args() -> CliArgs {
     let cli_yaml = load_yaml!("cli.yaml");
+    let mut version = get_version();
+    if let Some(commit) = option_env!("TRAVIS_COMMIT") {
+        version += &format!(" {}", &commit[..7]);
+    }
     let raw_args = clap::App::from_yaml(cli_yaml)
-        .version(get_version().as_str())
+        .version(version.as_str())
         .author(env!("CARGO_PKG_AUTHORS"))
-        .about(env!("CARGO_PKG_DESCRIPTION"))
+        .about(include_str!("about.txt"))
         .get_matches();
 
     let mut file_path: Option<String> = None;
@@ -108,20 +113,27 @@ fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) 
     }
 }
 
-fn help_message(file_path: &Path, keys: &[String]) {
+fn summary(key: &str, config: &FileConfig) -> String {
+    let cmd = &config.commands[key];
+    let description = format!("- {}", &cmd.description);
+    format!(
+        "{} {}",
+        Style::new().fg(Cyan).paint(key),
+        Style::new().fg(Yellow).paint(description),
+    )
+}
+
+fn help_message(file_path: &Path, config: &FileConfig, keys: &[String]) {
+    let commands: Vec<String> = keys.iter().map(|k| summary(k, &config)).collect();
     printlnc!(
         Green,
-        "donkey-make {}\nCommands available from {}:\n  {}",
+        "donkey-make {}, commands available from {}:\n  {}",
         get_version(),
         file_path.display(),
-        keys.join("\n  ") // TODO prettier with description and colour
+        commands.join("\n  ")
     );
 }
 
 fn get_version() -> String {
-    let mut version = env!("CARGO_PKG_VERSION").to_string();
-    if let Some(commit) = option_env!("TRAVIS_COMMIT") {
-        version += &format!(" {}", &commit[..7]);
-    }
-    version
+    format!("v{}", env!("CARGO_PKG_VERSION"))
 }

@@ -1,0 +1,6 @@
+
+https://github.com/samuelcolvin/donkey-make
+
+Make for the 21st century.
+
+Reads a YAML file and executes commands defined therein.
