@@ -37,7 +37,7 @@ class Proc:
 @pytest.fixture(name='run')
 def fix_run(exe):
     def run_exe(*args) -> Proc:
-        p = run([str(exe), *args], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        p = run([str(exe), *args], stdout=PIPE, stderr=PIPE, env={'PS4': '+ '}, universal_newlines=True)
         return Proc(p)
 
     return run_exe

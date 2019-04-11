@@ -3,7 +3,7 @@ lint:
   run:
   - cargo fmt --all -- --check
   - cargo clippy -- -D warnings
-  description: 'run both cargo fmt and cargo clippy and in "check" mode'
+  description: 'run both cargo fmt and clippy in "check" mode'
 
 fmt:
 - cargo fmt
@@ -16,11 +16,11 @@ test:
   ex: bash
 
 all:
-- cargo fmt --all -- --check
-- cargo clippy -- -D warnings
-- set +x
-- source env/bin/activate
-- python3 -m pytest tests/
+  - cargo fmt --all -- --check
+  - cargo clippy -- -D warnings
+  - set +x
+  - source env/bin/activate
+  - python3 -m pytest tests/
 
 release:
   run:
