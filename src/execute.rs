@@ -15,7 +15,13 @@ use crate::commands::{Cmd, FileConfig, Mod};
 const PATH_STR: &str = ".donkey-make.tmp";
 const BAR: &str = "==========================================================================================";
 
-pub fn main(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &[String], delete_tmp: bool) -> Option<i32> {
+pub fn main(
+    command_name: &str,
+    config: &FileConfig,
+    cmd: &Cmd,
+    cli_args: &[String],
+    delete_tmp: bool,
+) -> Result<Option<i32>, String> {
     let mut args: Vec<String> = vec![PATH_STR.to_string()];
     args.extend(cmd.args.iter().cloned());
     args.extend(cli_args.iter().cloned());
@@ -24,28 +30,24 @@ pub fn main(command_name: &str, config: &FileConfig, cmd: &Cmd, cli_args: &[Stri
     merge_maps(&mut env, &config.env);
     merge_maps(&mut env, &cmd.env);
 
-    write(command_name, cmd, &args, &env);
-    match run_command(command_name, cmd, &args, &env) {
-        Ok(t) => {
-            delete(delete_tmp);
-            t
-        }
-        Err(e) => {
-            delete(delete_tmp);
-            exit!(
-                "failed to execute command \"{} {}\": {}",
-                cmd.executable,
-                args.join(" "),
-                e
-            );
-        }
+    write(command_name, cmd, &args, &env)?;
+    let exit_code = run_command(command_name, cmd, &args, &env);
+    delete(delete_tmp)?;
+    match exit_code {
+        Ok(t) => Ok(t),
+        Err(e) => err!(
+            "failed to execute command \"{} {}\": {}",
+            cmd.executable,
+            args.join(" "),
+            e
+        ),
     }
 }
 
-fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) {
+fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> Result<(), String> {
     let path = Path::new(PATH_STR);
     if path.exists() {
-        exit!(
+        return err!(
             "Error writing temporary file:\n  {} already exists, donkey-make may be running already",
             PATH_STR
         );
@@ -77,11 +79,9 @@ fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) {
     let content = format!("{} {}\n{}", comment, prefix.join(&sep), script.join("\n"));
 
     match create_file(path, &content) {
-        Ok(t) => t,
-        Err(e) => {
-            exit!("Error writing temporary file {}:\n  {}", PATH_STR, e);
-        }
-    };
+        Ok(_) => Ok(()),
+        Err(e) => err!("Error writing temporary file {}:\n  {}", PATH_STR, e),
+    }
 }
 
 fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> Result<Option<i32>, Error> {
@@ -116,22 +116,23 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> 
                     signal_name(sig),
                     dur_str
                 );
-                Ok(Some(2))
+                Ok(Some(99))
             }
         }
     }
 }
 
-fn delete(delete: bool) {
+fn delete(delete: bool) -> Result<(), String> {
     if delete {
         let path = Path::new(PATH_STR);
         match fs::remove_file(path) {
             Ok(t) => t,
             Err(e) => {
-                exit!("Error deleting temporary file {}, {}", PATH_STR, e);
+                return err!("Error deleting temporary file {}, {}", PATH_STR, e);
             }
         };
     }
+    Ok(())
 }
 
 fn create_file(path: &Path, content: &str) -> std::io::Result<()> {

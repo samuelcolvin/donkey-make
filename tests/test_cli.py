@@ -28,7 +28,7 @@ def test_smart_script(run, test_path: TPath):
 def test_tmp_exists(run, test_path: TPath):
     test_path.write_file('.donkey-make.tmp', '.')
     p = run()
-    assert p.returncode == 1
+    assert p.returncode == 100
     assert p.stdout == ''
     assert p.stderr == (
         'No commands file provided, and no default found, tried:\n'
@@ -39,7 +39,7 @@ def test_tmp_exists(run, test_path: TPath):
 def test_invalid_yaml(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', 'foo: string')
     p = run()
-    assert p.returncode == 1
+    assert p.returncode == 100
     assert p.stdout == ''
     assert p.stderr == (
         'Error parsing donkey-make.yaml:\n'

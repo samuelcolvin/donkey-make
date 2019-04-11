@@ -1,12 +1,9 @@
-macro_rules! exit {
+macro_rules! err {
     ($msg:expr) => (
-        eprintln!("{}", ansi_term::Colour::Red.paint($msg));
-        std::process::exit(1);
+        Err(format!("{}", $msg))
     );
     ($fmt:expr, $($arg:expr),+) => (
-        let msg = format!($fmt, $($arg),+);
-        eprintln!("{}", ansi_term::Colour::Red.paint(msg));
-        std::process::exit(1);
+        Err(format!($fmt, $($arg),+))
     );
 }
 

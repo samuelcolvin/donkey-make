@@ -83,33 +83,33 @@ const PATH_OPTIONS: [&str; 6] = [
     "donkey-make.yaml",
 ];
 
-pub fn find_file(file_path_opt: &Option<String>) -> &Path {
+pub fn find_file(file_path_opt: &Option<String>) -> Result<&Path, String> {
     if let Some(file_path) = file_path_opt {
-        return Path::new(file_path);
+        return Ok(Path::new(file_path));
     }
     for path in PATH_OPTIONS.iter() {
         let path_option: &Path = Path::new(path);
         if path_option.exists() {
-            return path_option;
+            return Ok(path_option);
         }
     }
-    exit!("No commands file provided, and no default found, tried:\n  donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml");
+    err!("No commands file provided, and no default found, tried:\n  donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml")
 }
 
-pub fn load_file(path: &Path) -> FileConfig {
+pub fn load_file(path: &Path) -> Result<FileConfig, String> {
     let file = match File::open(&path) {
         Ok(t) => t,
         Err(e) => {
-            exit!("Error opening {}:\n  {}", path.display(), e);
+            return err!("Error opening {}:\n  {}", path.display(), e);
         }
     };
 
-    match serde_yaml::from_reader(file) {
+    Ok(match serde_yaml::from_reader(file) {
         Ok(t) => t,
         Err(e) => {
-            exit!("Error parsing {}:\n  {}", path.display(), e);
+            return err!("Error parsing {}:\n  {}", path.display(), e);
         }
-    }
+    })
 }
 
 fn build_description(run: &[String], ex: &Option<String>, desc: Option<String>) -> String {

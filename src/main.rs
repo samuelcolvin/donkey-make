@@ -12,7 +12,7 @@ mod macros;
 use std::path::Path;
 use std::string::ToString;
 
-use ansi_term::Colour::{Cyan, Green, Yellow};
+use ansi_term::Colour::{Cyan, Green, Red, Yellow};
 use ansi_term::Style;
 
 use crate::commands::{Cmd, FileConfig};
@@ -21,20 +21,34 @@ mod commands;
 mod execute;
 
 fn main() {
-    let cli = parse_args();
-    let file_path = commands::find_file(&cli.file_path);
+    let optional_exit_code = match run() {
+        Err(e) => {
+            eprintln!("{}", Red.paint(e));
+            // use 100 to hopefully differentiate from command error codes
+            Some(100)
+        }
+        Ok(c) => c,
+    };
+    if let Some(exit_code) = optional_exit_code {
+        std::process::exit(exit_code);
+    }
+}
 
-    let config = commands::load_file(file_path);
+fn run() -> Result<Option<i32>, String> {
+    let cli = parse_args();
+    let file_path = commands::find_file(&cli.file_path)?;
+
+    let config = commands::load_file(file_path)?;
     let keys: Vec<String> = config.commands.keys().cloned().collect();
 
     let command_name = match cli.command {
         Some(c) => c,
         _ => {
             help_message(&file_path, &config, &keys);
-            return;
+            return Ok(None);
         }
     };
-    let command = get_command(&config, &command_name, &keys);
+    let command = get_command(&config, &command_name, &keys)?;
 
     printlnc!(
         Green,
@@ -43,9 +57,8 @@ fn main() {
         file_path.display()
     );
 
-    if let Some(c) = execute::main(&command_name, &config, &command, &cli.args, cli.delete_tmp) {
-        std::process::exit(c);
-    };
+    let c = execute::main(&command_name, &config, &command, &cli.args, cli.delete_tmp)?;
+    Ok(c)
 }
 
 #[derive(Debug)]
@@ -100,17 +113,17 @@ fn parse_args() -> CliArgs {
     }
 }
 
-fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) -> &'a Cmd {
-    match config.commands.get(command_name) {
+fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) -> Result<&'a Cmd, String> {
+    Ok(match config.commands.get(command_name) {
         Some(c) => c,
         None => {
-            exit!(
+            return err!(
                 "Command \"{}\" not found, commands available are:\n  {}",
                 command_name,
                 keys.join(", ")
             );
         }
-    }
+    })
 }
 
 fn summary(key: &str, config: &FileConfig) -> String {
