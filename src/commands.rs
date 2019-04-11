@@ -115,10 +115,7 @@ pub fn load_file(path: &Path) -> FileConfig {
 fn build_description(run: &[String], ex: &Option<String>, desc: Option<String>) -> String {
     let main = match desc {
         Some(d) => d,
-        None => match run.first() {
-            Some(d) => d.clone(),
-            None => "".to_string(),
-        },
+        None => first_line(run),
     };
     let mut ex_str = "".to_string();
     if let Some(e) = ex {
@@ -133,6 +130,28 @@ fn build_description(run: &[String], ex: &Option<String>, desc: Option<String>) 
     format!("{} ({}{})", main, ex_str, lines)
 }
 
+fn first_line(run: &[String]) -> String {
+    match run.first() {
+        Some(f) => {
+            let mut first_line = f.clone();
+            let mut more = match run.len() {
+                c if c > 1 => true,
+                _ => false,
+            };
+            if let Some(nl) = first_line.find('\n') {
+                more = true;
+                first_line = first_line[..nl].to_string();
+            }
+            if more {
+                format!("{} ...", first_line)
+            } else {
+                first_line
+            }
+        }
+        None => "".to_string(),
+    }
+}
+
 fn dft_exe() -> String {
     BASH_SMART.to_string()
 }
@@ -145,6 +164,7 @@ struct Command {
     args: Vec<String>,
     #[serde(default)]
     env: Map<String, String>,
+    #[serde(rename = "ex")]
     #[serde(default = "dft_exe")]
     executable: String,
     pub description: Option<String>,
