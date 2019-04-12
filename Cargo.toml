@@ -12,3 +12,4 @@ serde_derive = "1.0"
 clap = {version = "2.33.0", features = ["yaml"]}
 ansi_term = "0.11"
 signal-hook = "0.1.8"
+indexmap = {version = "1.0.2", features = ["serde-1"]}

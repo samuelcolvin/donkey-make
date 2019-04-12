@@ -1,4 +1,4 @@
-use std::collections::BTreeMap as Map;
+use indexmap::IndexMap as Map;
 use std::fs::File;
 use std::path::Path;
 

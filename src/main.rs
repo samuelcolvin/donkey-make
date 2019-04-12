@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_yaml;
 extern crate ansi_term;
 #[macro_use]
 extern crate clap;
-extern crate serde_yaml;
 extern crate signal_hook;
+extern crate indexmap;
 
 #[macro_use]
 mod macros;

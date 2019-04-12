@@ -1,4 +1,3 @@
-use std::collections::BTreeMap as Map;
 use std::fs;
 use std::io::Error;
 use std::io::Write;
@@ -9,6 +8,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use ansi_term::Colour::{Green, Yellow};
+use indexmap::IndexMap as Map;
 
 use crate::commands::{Cmd, FileConfig, Mod};
 
