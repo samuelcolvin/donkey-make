@@ -19,8 +19,12 @@ before_script:
 - python3 -m pip install --user pytest
 
 script:
+- cargo fmt --version
 - cargo fmt --all -- --check
+
+- cargo clippy --version
 - cargo clippy -- -D warnings
+
 - cargo build --target $TARGET
 - python3 -m pytest tests/
 

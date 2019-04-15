@@ -1,11 +1,13 @@
 #!/usr/bin/env donk
 lint:
   run:
+  - cargo fmt --version
   - cargo fmt --all -- --check
+  - cargo clippy --version
   - cargo clippy -- -D warnings
   description: 'run both cargo fmt and clippy in "check" mode'
 
-fmt:
+format:
 - cargo fmt
 
 test:
