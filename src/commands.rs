@@ -1,9 +1,9 @@
 use indexmap::IndexMap as Map;
+use std::fmt;
 use std::fs::File;
 use std::path::Path;
 
-use serde::de::{Deserialize, Deserializer, Error};
-use serde_yaml::{from_value, Value};
+use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -19,7 +19,7 @@ pub struct FileConfig {
 const BASH_SMART: &str = "bash-smart";
 const BASH: &str = "bash";
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub enum Mod {
     None,
     SmartBash,
@@ -170,24 +170,51 @@ struct Command {
     pub description: Option<String>,
 }
 
+struct CommandVisitor;
+
+impl<'de> Visitor<'de> for CommandVisitor {
+    type Value = Cmd;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("string, sequence, or map")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        let run: Vec<String> = vec![value.to_string()];
+        Ok(Cmd::new(run, None, None, None, None))
+    }
+
+    fn visit_seq<S>(self, seq: S) -> Result<Self::Value, S::Error>
+    where
+        S: SeqAccess<'de>,
+    {
+        let run: Vec<String> = Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))?;
+        Ok(Cmd::new(run, None, None, None, None))
+    }
+
+    fn visit_map<M>(self, map: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let c: Command = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
+        Ok(Cmd::new(
+            c.run,
+            Some(c.args),
+            Some(c.env),
+            Some(c.executable),
+            c.description,
+        ))
+    }
+}
+
 impl<'de> Deserialize<'de> for Cmd {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let v: Value = Deserialize::deserialize(deserializer)?;
-        if v.is_sequence() {
-            let run: Vec<String> = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(run, None, None, None, None))
-        } else {
-            let c: Command = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(
-                c.run,
-                Some(c.args),
-                Some(c.env),
-                Some(c.executable),
-                c.description,
-            ))
-        }
+        deserializer.deserialize_any(CommandVisitor)
     }
 }
