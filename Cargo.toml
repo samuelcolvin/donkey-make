@@ -6,10 +6,11 @@ edition = "2018"
 description = "Make for the 21st century"
 
 [dependencies]
-serde = "1.0"
-serde_yaml = "0.8"
-serde_derive = "1.0"
-clap = {version = "2.33.0", features = ["yaml"]}
 ansi_term = "0.11"
-signal-hook = "0.1.8"
+atty = "0.2"
+clap = {version = "2.33.0", features = ["yaml"]}
 indexmap = {version = "1.0.2", features = ["serde-1"]}
+serde = "1.0"
+serde_derive = "1.0"
+serde_yaml = "0.8"
+signal-hook = "0.1.8"

@@ -10,6 +10,31 @@ macro_rules! err {
 macro_rules! printlnc {
     ($colour:expr, $fmt:expr, $($arg:expr),+) => (
         let msg = format!($fmt, $($arg),+);
-        println!("{}", ansi_term::Style::new().fg($colour).paint(msg));
+        if atty::is(atty::Stream::Stdout) {
+            println!("{}", $colour.paint(msg));
+        } else {
+            println!("{}", msg);
+        }
     );
+}
+
+macro_rules! eprintlnc {
+    ($colour:expr, $fmt:expr, $($arg:expr),+) => (
+        let msg = format!($fmt, $($arg),+);
+        if atty::is(atty::Stream::Stderr) {
+            eprintln!("{}", $colour.paint(msg));
+        } else {
+            eprintln!("{}", msg);
+        }
+    );
+}
+
+macro_rules! paint {
+    ($colour:expr, $msg:expr) => {
+        if atty::is(atty::Stream::Stdout) {
+            format!("{}", $colour.paint($msg))
+        } else {
+            format!("{}", $msg)
+        }
+    };
 }

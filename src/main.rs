@@ -1,10 +1,11 @@
-#[macro_use]
-extern crate serde_derive;
 extern crate ansi_term;
-extern crate serde_yaml;
+extern crate atty;
 #[macro_use]
 extern crate clap;
 extern crate indexmap;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_yaml;
 extern crate signal_hook;
 
 #[macro_use]
@@ -14,7 +15,6 @@ use std::path::Path;
 use std::string::ToString;
 
 use ansi_term::Colour::{Cyan, Green, Red, Yellow};
-use ansi_term::Style;
 
 use crate::commands::{Cmd, FileConfig};
 
@@ -24,7 +24,7 @@ mod execute;
 fn main() {
     let optional_exit_code = match run() {
         Err(e) => {
-            eprintln!("{}", Red.paint(e));
+            eprintlnc!(Red, "{}", e);
             // use 100 to hopefully differentiate from command error codes
             Some(100)
         }
@@ -130,11 +130,7 @@ fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) 
 fn summary(key: &str, config: &FileConfig) -> String {
     let cmd = &config.commands[key];
     let description = format!("- {}", &cmd.description);
-    format!(
-        "{} {}",
-        Style::new().fg(Cyan).paint(key),
-        Style::new().fg(Yellow).paint(description),
-    )
+    format!("{} {}", paint!(Cyan, key), paint!(Yellow, description))
 }
 
 fn help_message(file_path: &Path, config: &FileConfig, keys: &[String]) {

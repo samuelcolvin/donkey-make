@@ -1,5 +1,4 @@
 import os
-import re
 from pathlib import Path
 from subprocess import run, CompletedProcess, PIPE, STDOUT
 
@@ -22,23 +21,11 @@ def exe():
     return bin_path.resolve()
 
 
-class Proc:
-    def __init__(self, p: CompletedProcess):
-        self.p = CompletedProcess
-        self.returncode = p.returncode
-        self.stdout = self.strip_ansi(p.stdout)
-        self.stderr = self.strip_ansi(p.stderr)
-
-    @staticmethod
-    def strip_ansi(value):
-        return re.sub('\033\\[((?:\\d|;)*)([a-zA-Z])', '', value)
-
-
 @pytest.fixture(name='run')
 def fix_run(exe):
-    def run_exe(*args) -> Proc:
+    def run_exe(*args) -> CompletedProcess:
         p = run([str(exe), *args], stdout=PIPE, stderr=PIPE, env={'PS4': '+ '}, universal_newlines=True)
-        return Proc(p)
+        return p
 
     return run_exe
 
