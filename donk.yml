@@ -12,19 +12,17 @@ format:
 
 test:
   run:
-  - source env/bin/activate
-  - python3 -m pytest tests/
+  - cargo test
+  - env/bin/python -m pytest tests/
   description: run tests
-  ex: bash
 
 all:
   - cargo fmt --all -- --check
   - cargo clippy -- -D warnings
-  - set +x
-  - source env/bin/activate
-  - python3 -m pytest tests/
+  - cargo test
+  - env/bin/python -m pytest tests/
 
-release:
+build:
   run:
   - rm -rf target/release/
   - export TRAVIS_COMMIT="$(git rev-parse HEAD)"

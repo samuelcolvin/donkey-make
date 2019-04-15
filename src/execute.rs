@@ -188,12 +188,67 @@ fn merge_maps(base: &mut StrMap, update: &StrMap) {
 }
 
 fn format_duration(tic: SystemTime, toc: SystemTime) -> String {
-    match toc.duration_since(tic).unwrap() {
+    match toc.duration_since(tic).unwrap_or(Duration::from_secs(0)) {
         d if d < Duration::from_millis(10) => format!("{:0.3}ms", d.subsec_micros() as f32 / 1000.0),
         d if d < Duration::from_secs(1) => format!("{}ms", d.subsec_millis()),
         d if d < Duration::from_secs(100) => {
             format!("{:0.3}s", d.as_secs() as f64 + f64::from(d.subsec_millis()) / 1000.0)
         }
         d => format!("{}s", d.as_secs()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indexmap::IndexMap as Map;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn format_duration_5ms() {
+        let tic = SystemTime::now();
+        let toc = tic + Duration::from_millis(5);
+        assert_eq!(format_duration(tic, toc), "5.000ms");
+    }
+
+    #[test]
+    fn format_duration_15ms() {
+        let tic = SystemTime::now();
+        let toc = tic + Duration::from_millis(15);
+        assert_eq!(format_duration(tic, toc), "15ms");
+    }
+
+    #[test]
+    fn format_duration_2s() {
+        let tic = SystemTime::now();
+        let toc = tic + Duration::from_secs(2);
+        assert_eq!(format_duration(tic, toc), "2.000s");
+    }
+
+    #[test]
+    fn format_duration_200s() {
+        let tic = SystemTime::now();
+        let toc = tic + Duration::from_secs(200);
+        assert_eq!(format_duration(tic, toc), "200s");
+    }
+
+    #[test]
+    fn merge_add() {
+        let mut base: Map<String, String> = Map::new();
+        base.insert("a".to_string(), "b".to_string());
+        let mut update: Map<String, String> = Map::new();
+        update.insert("c".to_string(), "d".to_string());
+        merge_maps(&mut base, &update);
+        assert_eq!(format!("{:?}", base), r#"{"a": "b", "c": "d"}"#);
+    }
+
+    #[test]
+    fn merge_update() {
+        let mut base: Map<String, String> = Map::new();
+        base.insert("a".to_string(), "b".to_string());
+        let mut update: Map<String, String> = Map::new();
+        update.insert("a".to_string(), "d".to_string());
+        merge_maps(&mut base, &update);
+        assert_eq!(format!("{:?}", base), r#"{"a": "d"}"#);
     }
 }

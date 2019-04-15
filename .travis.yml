@@ -25,7 +25,7 @@ script:
 - cargo clippy --version
 - cargo clippy -- -D warnings
 
-- cargo build --target $TARGET
+- cargo test --target $TARGET
 - python3 -m pytest tests/
 
 before_deploy:
