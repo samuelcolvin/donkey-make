@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use ansi_term::Colour::{Green, Yellow};
-use indexmap::IndexMap as Map;
+use linked_hash_map::LinkedHashMap as Map;
 
 use crate::commands::{Cmd, FileConfig, Mod};
 
@@ -201,7 +201,7 @@ fn format_duration(tic: SystemTime, toc: SystemTime) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use indexmap::IndexMap as Map;
+    use linked_hash_map::LinkedHashMap as Map;
     use std::time::{Duration, SystemTime};
 
     #[test]

@@ -1,11 +1,11 @@
-use indexmap::IndexMap as Map;
 use std::fmt;
 use std::fs::File;
 use std::marker::PhantomData;
 use std::path::Path;
 
+use linked_hash_map::LinkedHashMap as Map;
 use serde::de::{self, Deserialize, Deserializer, Error, SeqAccess, Visitor};
-use serde_yaml::{from_reader, from_value, Value};
+use serde_yaml::{from_reader, from_value, Mapping, Value};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -178,13 +178,14 @@ impl<'de> Deserialize<'de> for Cmd {
     where
         D: Deserializer<'de>,
     {
-        let v: Value = Deserialize::deserialize(deserializer)?;
-        if let Value::String(s) = v {
-            Ok(Cmd::new(vec![s], None, None, None, None))
-        } else if v.is_sequence() {
-            let run: Vec<String> = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(run, None, None, None, None))
-        } else if v.is_mapping() {
+        let mut v: Value = Deserialize::deserialize(deserializer)?;
+        if v.is_string() || v.is_sequence() {
+            let mut m: Mapping = Mapping::new();
+            m.insert(Value::String("run".to_string()), v.clone());
+            v = Value::Mapping(m);
+        }
+
+        if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
             Ok(Cmd::new(
                 c.run,
@@ -194,7 +195,9 @@ impl<'de> Deserialize<'de> for Cmd {
                 c.description,
             ))
         } else {
-            Err(D::Error::custom("must be string, sequence or map"))
+            Err(D::Error::custom(
+                "invalid type: commands must be a string, sequence, or map",
+            ))
         }
     }
 }

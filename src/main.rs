@@ -2,7 +2,7 @@ extern crate ansi_term;
 extern crate atty;
 #[macro_use]
 extern crate clap;
-extern crate indexmap;
+extern crate linked_hash_map;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_yaml;
