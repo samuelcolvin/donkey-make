@@ -1,9 +1,11 @@
 use indexmap::IndexMap as Map;
+use std::fmt;
 use std::fs::File;
+use std::marker::PhantomData;
 use std::path::Path;
 
-use serde::de::{Deserialize, Deserializer, Error};
-use serde_yaml::{from_value, Value};
+use serde::de::{self, Deserialize, Deserializer, Error, SeqAccess, Visitor};
+use serde_yaml::{from_reader, from_value, Value};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -104,7 +106,7 @@ pub fn load_file(path: &Path) -> Result<FileConfig, String> {
         }
     };
 
-    Ok(match serde_yaml::from_reader(file) {
+    Ok(match from_reader(file) {
         Ok(t) => t,
         Err(e) => {
             return err!("Error parsing {}:\n  {}", path.display(), e);
@@ -159,6 +161,7 @@ fn dft_exe() -> String {
 // Command here is copy of Cmd above, used for deserialising maps
 #[derive(Debug, Deserialize)]
 struct Command {
+    #[serde(deserialize_with = "string_or_seq")]
     run: Vec<String>,
     #[serde(default)]
     args: Vec<String>,
@@ -176,10 +179,12 @@ impl<'de> Deserialize<'de> for Cmd {
         D: Deserializer<'de>,
     {
         let v: Value = Deserialize::deserialize(deserializer)?;
-        if v.is_sequence() {
+        if let Value::String(s) = v {
+            Ok(Cmd::new(vec![s], None, None, None, None))
+        } else if v.is_sequence() {
             let run: Vec<String> = from_value(v).map_err(D::Error::custom)?;
             Ok(Cmd::new(run, None, None, None, None))
-        } else {
+        } else if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
             Ok(Cmd::new(
                 c.run,
@@ -188,6 +193,53 @@ impl<'de> Deserialize<'de> for Cmd {
                 Some(c.executable),
                 c.description,
             ))
+        } else {
+            Err(D::Error::custom("must be string, sequence or map"))
         }
     }
+}
+
+trait VecFromStr {
+    fn from_str(s: &str) -> Self;
+}
+
+impl VecFromStr for Vec<String> {
+    fn from_str(s: &str) -> Self {
+        vec![s.to_string()]
+    }
+}
+
+fn string_or_seq<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Deserialize<'de> + VecFromStr,
+    D: Deserializer<'de>,
+{
+    struct StringOrSeq<T>(PhantomData<fn() -> T>);
+
+    impl<'de, T> Visitor<'de> for StringOrSeq<T>
+    where
+        T: Deserialize<'de> + VecFromStr,
+    {
+        type Value = T;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("string or sequence")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<T, E>
+        where
+            E: de::Error,
+        {
+            Ok(VecFromStr::from_str(value))
+        }
+
+        fn visit_seq<S>(self, seq: S) -> Result<T, S::Error>
+        where
+            S: SeqAccess<'de>,
+        {
+            Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
+        }
+    }
+
+    deserializer.deserialize_any(StringOrSeq(PhantomData))
 }
