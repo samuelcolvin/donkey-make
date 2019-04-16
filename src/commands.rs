@@ -39,36 +39,20 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    fn new(
-        run: Vec<String>,
-        args: Option<Vec<String>>,
-        env: Option<Map<String, String>>,
-        ex: Option<String>,
-        desc: Option<String>,
-    ) -> Cmd {
+    fn from_command(command: Command) -> Cmd {
         let mut modifier: Mod = Mod::SmartBash;
-        let executable = match &ex {
-            Some(e) => {
-                if e == BASH_SMART {
-                    BASH.to_string()
-                } else {
-                    modifier = Mod::None;
-                    e.clone()
-                }
+        let executable = match command.executable.as_ref() {
+            BASH_SMART => BASH.to_string(),
+            e => {
+                modifier = Mod::None;
+                e.to_string()
             }
-            None => BASH.to_string(),
         };
-        let description = build_description(&run, &ex, desc);
+        let description = build_description(&command, &modifier);
         Cmd {
-            run,
-            args: match args {
-                Some(t) => t,
-                None => Vec::new(),
-            },
-            env: match env {
-                Some(t) => t,
-                None => Map::new(),
-            },
+            run: command.run,
+            args: command.args,
+            env: command.env,
             executable,
             description,
             modifier,
@@ -114,18 +98,16 @@ pub fn load_file(path: &Path) -> Result<FileConfig, String> {
     })
 }
 
-fn build_description(run: &[String], ex: &Option<String>, desc: Option<String>) -> String {
-    let main = match desc {
-        Some(d) => d,
-        None => first_line(run),
+fn build_description(command: &Command, modifier: &Mod) -> String {
+    let main = match &command.description {
+        Some(d) => d.clone(),
+        None => first_line(&command.run),
     };
-    let mut ex_str = "".to_string();
-    if let Some(e) = ex {
-        if e != BASH_SMART {
-            ex_str = format!("{}, ", e);
-        }
-    }
-    let lines = match run.len() {
+    let ex_str = match modifier {
+        Mod::SmartBash => "".to_string(),
+        _ => format!("{}, ", command.executable),
+    };
+    let lines = match command.run.len() {
         1 => "1 line".to_string(),
         c => format!("{} lines", c),
     };
@@ -158,7 +140,6 @@ fn dft_exe() -> String {
     BASH_SMART.to_string()
 }
 
-// Command here is copy of Cmd above, used for deserialising maps
 #[derive(Debug, Deserialize)]
 struct Command {
     #[serde(deserialize_with = "string_or_seq")]
@@ -187,13 +168,7 @@ impl<'de> Deserialize<'de> for Cmd {
 
         if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(
-                c.run,
-                Some(c.args),
-                Some(c.env),
-                Some(c.executable),
-                c.description,
-            ))
+            Ok(Cmd::from_command(c))
         } else {
             Err(D::Error::custom(
                 "invalid type: commands must be a string, sequence, or map",
