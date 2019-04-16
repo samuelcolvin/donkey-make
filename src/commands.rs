@@ -32,16 +32,6 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    fn from_command(command: Command) -> Cmd {
-        Cmd {
-            run: command.run,
-            args: command.args,
-            env: command.env,
-            executable: command.executable,
-            description: command.description,
-        }
-    }
-
     pub fn smart(&self) -> bool {
         match self.executable.as_ref() {
             BASH_SMART => true,
@@ -135,39 +125,45 @@ fn first_line(run: &[String]) -> String {
     }
 }
 
-fn dft_exe() -> String {
-    BASH_SMART.to_string()
-}
-
-#[derive(Debug, Deserialize)]
-struct Command {
-    #[serde(deserialize_with = "string_or_seq")]
-    run: Vec<String>,
-    #[serde(default)]
-    args: Vec<String>,
-    #[serde(default)]
-    env: Map<String, String>,
-    #[serde(rename = "ex")]
-    #[serde(default = "dft_exe")]
-    executable: String,
-    pub description: Option<String>,
-}
-
 impl<'de> Deserialize<'de> for Cmd {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
+        fn dft_exe() -> String {
+            BASH_SMART.to_string()
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct Command {
+            #[serde(deserialize_with = "string_or_seq")]
+            run: Vec<String>,
+            #[serde(default)]
+            args: Vec<String>,
+            #[serde(default)]
+            env: Map<String, String>,
+            #[serde(rename = "ex")]
+            #[serde(default = "dft_exe")]
+            executable: String,
+            pub description: Option<String>,
+        }
+
         let mut v: Value = Deserialize::deserialize(deserializer)?;
         if v.is_string() || v.is_sequence() {
-            let mut m: Mapping = Mapping::new();
+            let mut m: Mapping = Mapping::with_capacity(1);
             m.insert(Value::String("run".to_string()), v.clone());
             v = Value::Mapping(m);
         }
 
         if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::from_command(c))
+            Ok(Cmd {
+                run: c.run,
+                args: c.args,
+                env: c.env,
+                executable: c.executable,
+                description: c.description,
+            })
         } else {
             Err(D::Error::custom(
                 "invalid type: commands must be a string, sequence, or map",
