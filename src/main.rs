@@ -129,7 +129,7 @@ fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) 
 
 fn summary(key: &str, config: &FileConfig) -> String {
     let cmd = &config.commands[key];
-    let description = format!("- {}", &cmd.description);
+    let description = format!("- {}", &cmd.description());
     format!("{} {}", paint!(Cyan, key), paint!(Yellow, description))
 }
 

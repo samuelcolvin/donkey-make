@@ -22,41 +22,56 @@ const BASH_SMART: &str = "bash-smart";
 const BASH: &str = "bash";
 
 #[derive(Debug)]
-pub enum Mod {
-    None,
-    SmartBash,
-}
-
-#[derive(Debug)]
 pub struct Cmd {
     pub run: Vec<String>,
     pub args: Vec<String>,
     pub env: Map<String, String>,
-    pub executable: String,
-    pub description: String,
-    pub modifier: Mod,
+    executable: String,
+    description: Option<String>,
     // TODO context, before
 }
 
 impl Cmd {
     fn from_command(command: Command) -> Cmd {
-        let mut modifier: Mod = Mod::SmartBash;
-        let executable = match command.executable.as_ref() {
-            BASH_SMART => BASH.to_string(),
-            e => {
-                modifier = Mod::None;
-                e.to_string()
-            }
-        };
-        let description = build_description(&command, &modifier);
         Cmd {
             run: command.run,
             args: command.args,
             env: command.env,
-            executable,
-            description,
-            modifier,
+            executable: command.executable,
+            description: command.description,
         }
+    }
+
+    pub fn smart(&self) -> bool {
+        match self.executable.as_ref() {
+            BASH_SMART => true,
+            _ => false,
+        }
+    }
+
+    pub fn executable(&self) -> String {
+        if self.smart() {
+            BASH.to_string()
+        } else {
+            self.executable.clone()
+        }
+    }
+
+    pub fn description(&self) -> String {
+        let main = match &self.description {
+            Some(d) => d.clone(),
+            None => first_line(&self.run),
+        };
+        let ex_str = if self.smart() {
+            "".to_string()
+        } else {
+            format!("{}, ", self.executable())
+        };
+        let lines = match self.run.len() {
+            1 => "1 line".to_string(),
+            c => format!("{} lines", c),
+        };
+        format!("{} ({}{})", main, ex_str, lines)
     }
 }
 
@@ -96,22 +111,6 @@ pub fn load_file(path: &Path) -> Result<FileConfig, String> {
             return err!("Error parsing {}:\n  {}", path.display(), e);
         }
     })
-}
-
-fn build_description(command: &Command, modifier: &Mod) -> String {
-    let main = match &command.description {
-        Some(d) => d.clone(),
-        None => first_line(&command.run),
-    };
-    let ex_str = match modifier {
-        Mod::SmartBash => "".to_string(),
-        _ => format!("{}, ", command.executable),
-    };
-    let lines = match command.run.len() {
-        1 => "1 line".to_string(),
-        c => format!("{} lines", c),
-    };
-    format!("{} ({}{})", main, ex_str, lines)
 }
 
 fn first_line(run: &[String]) -> String {
