@@ -136,7 +136,7 @@ impl<'de> Deserialize<'de> for Cmd {
 
         #[derive(Debug, Deserialize)]
         struct Command {
-            #[serde(deserialize_with = "string_or_seq")]
+            #[serde(deserialize_with = "seq_or_string")]
             run: Vec<String>,
             #[serde(default)]
             args: Vec<String>,
@@ -145,7 +145,7 @@ impl<'de> Deserialize<'de> for Cmd {
             #[serde(rename = "ex")]
             #[serde(default = "dft_exe")]
             executable: String,
-            pub description: Option<String>,
+            description: Option<String>,
         }
 
         let mut v: Value = Deserialize::deserialize(deserializer)?;
@@ -172,26 +172,26 @@ impl<'de> Deserialize<'de> for Cmd {
     }
 }
 
-trait VecFromStr {
+trait SeqFromStr {
     fn from_str(s: &str) -> Self;
 }
 
-impl VecFromStr for Vec<String> {
+impl SeqFromStr for Vec<String> {
     fn from_str(s: &str) -> Self {
         vec![s.to_string()]
     }
 }
 
-fn string_or_seq<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+fn seq_or_string<'de, T, D>(deserializer: D) -> Result<T, D::Error>
 where
-    T: Deserialize<'de> + VecFromStr,
+    T: Deserialize<'de> + SeqFromStr,
     D: Deserializer<'de>,
 {
     struct StringOrSeq<T>(PhantomData<fn() -> T>);
 
     impl<'de, T> Visitor<'de> for StringOrSeq<T>
     where
-        T: Deserialize<'de> + VecFromStr,
+        T: Deserialize<'de> + SeqFromStr,
     {
         type Value = T;
 
@@ -203,7 +203,7 @@ where
         where
             E: de::Error,
         {
-            Ok(VecFromStr::from_str(value))
+            Ok(SeqFromStr::from_str(value))
         }
 
         fn visit_seq<S>(self, seq: S) -> Result<T, S::Error>
