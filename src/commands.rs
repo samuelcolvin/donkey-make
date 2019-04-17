@@ -6,6 +6,7 @@ use std::path::Path;
 use linked_hash_map::LinkedHashMap as Map;
 use serde::de::{self, Deserialize, Deserializer, Error, SeqAccess, Visitor};
 use serde_yaml::{from_reader, from_value, Mapping, Value};
+use serde_yaml::{Error as SerdeError, Result as SerdeResult};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -28,7 +29,8 @@ pub struct Cmd {
     pub env: Map<String, String>,
     executable: String,
     description: Option<String>,
-    // TODO context, before
+    prefix: Vec<String>,
+    suffix: Vec<String>,
 }
 
 impl Cmd {
@@ -95,12 +97,31 @@ pub fn load_file(path: &Path) -> Result<FileConfig, String> {
         }
     };
 
-    Ok(match from_reader(file) {
+    Ok(match parse_file(file) {
         Ok(t) => t,
         Err(e) => {
             return err!("Error parsing {}:\n  {}", path.display(), e);
         }
     })
+}
+
+fn parse_file(file: File) -> SerdeResult<FileConfig> {
+    let config: FileConfig = from_reader(file)?;
+    for (name, cmd) in config.commands.iter() {
+        check_list(&name, &config.commands, &cmd.prefix, "prefix")?;
+        check_list(&name, &config.commands, &cmd.suffix, "suffix")?;
+    }
+    Ok(config)
+}
+
+fn check_list(name: &str, commands: &Map<String, Cmd>, items: &[String], field: &str) -> Result<(), SerdeError> {
+    for sub_cmd in items.iter() {
+        if !commands.contains_key(sub_cmd) {
+            let msg = format!(r#"Command "{}", {} "{}" is not a valid command"#, name, field, sub_cmd);
+            return Err(SerdeError::custom(msg));
+        }
+    }
+    Ok(())
 }
 
 fn first_line(run: &[String]) -> String {
@@ -146,6 +167,13 @@ impl<'de> Deserialize<'de> for Cmd {
             #[serde(default = "dft_exe")]
             executable: String,
             description: Option<String>,
+
+            #[serde(default)]
+            #[serde(deserialize_with = "seq_or_string")]
+            prefix: Vec<String>,
+            #[serde(default)]
+            #[serde(deserialize_with = "seq_or_string")]
+            suffix: Vec<String>,
         }
 
         let mut v: Value = Deserialize::deserialize(deserializer)?;
@@ -163,6 +191,8 @@ impl<'de> Deserialize<'de> for Cmd {
                 env: c.env,
                 executable: c.executable,
                 description: c.description,
+                prefix: c.prefix,
+                suffix: c.suffix,
             })
         } else {
             Err(D::Error::custom(
