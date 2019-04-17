@@ -1,9 +1,11 @@
-use indexmap::IndexMap as Map;
+use std::fmt;
 use std::fs::File;
+use std::marker::PhantomData;
 use std::path::Path;
 
-use serde::de::{Deserialize, Deserializer, Error};
-use serde_yaml::{from_value, Value};
+use linked_hash_map::LinkedHashMap as Map;
+use serde::de::{self, Deserialize, Deserializer, Error, SeqAccess, Visitor};
+use serde_yaml::{from_reader, from_value, Mapping, Value};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -20,57 +22,46 @@ const BASH_SMART: &str = "bash-smart";
 const BASH: &str = "bash";
 
 #[derive(Debug)]
-pub enum Mod {
-    None,
-    SmartBash,
-}
-
-#[derive(Debug)]
 pub struct Cmd {
     pub run: Vec<String>,
     pub args: Vec<String>,
     pub env: Map<String, String>,
-    pub executable: String,
-    pub description: String,
-    pub modifier: Mod,
+    executable: String,
+    description: Option<String>,
     // TODO context, before
 }
 
 impl Cmd {
-    fn new(
-        run: Vec<String>,
-        args: Option<Vec<String>>,
-        env: Option<Map<String, String>>,
-        ex: Option<String>,
-        desc: Option<String>,
-    ) -> Cmd {
-        let mut modifier: Mod = Mod::SmartBash;
-        let executable = match &ex {
-            Some(e) => {
-                if e == BASH_SMART {
-                    BASH.to_string()
-                } else {
-                    modifier = Mod::None;
-                    e.clone()
-                }
-            }
-            None => BASH.to_string(),
-        };
-        let description = build_description(&run, &ex, desc);
-        Cmd {
-            run,
-            args: match args {
-                Some(t) => t,
-                None => Vec::new(),
-            },
-            env: match env {
-                Some(t) => t,
-                None => Map::new(),
-            },
-            executable,
-            description,
-            modifier,
+    pub fn smart(&self) -> bool {
+        match self.executable.as_ref() {
+            BASH_SMART => true,
+            _ => false,
         }
+    }
+
+    pub fn executable(&self) -> String {
+        if self.smart() {
+            BASH.to_string()
+        } else {
+            self.executable.clone()
+        }
+    }
+
+    pub fn description(&self) -> String {
+        let main = match &self.description {
+            Some(d) => d.clone(),
+            None => first_line(&self.run),
+        };
+        let ex_str = if self.smart() {
+            "".to_string()
+        } else {
+            format!("{}, ", self.executable())
+        };
+        let lines = match self.run.len() {
+            1 => "1 line".to_string(),
+            c => format!("{} lines", c),
+        };
+        format!("{} ({}{})", main, ex_str, lines)
     }
 }
 
@@ -104,30 +95,12 @@ pub fn load_file(path: &Path) -> Result<FileConfig, String> {
         }
     };
 
-    Ok(match serde_yaml::from_reader(file) {
+    Ok(match from_reader(file) {
         Ok(t) => t,
         Err(e) => {
             return err!("Error parsing {}:\n  {}", path.display(), e);
         }
     })
-}
-
-fn build_description(run: &[String], ex: &Option<String>, desc: Option<String>) -> String {
-    let main = match desc {
-        Some(d) => d,
-        None => first_line(run),
-    };
-    let mut ex_str = "".to_string();
-    if let Some(e) = ex {
-        if e != BASH_SMART {
-            ex_str = format!("{}, ", e);
-        }
-    }
-    let lines = match run.len() {
-        1 => "1 line".to_string(),
-        c => format!("{} lines", c),
-    };
-    format!("{} ({}{})", main, ex_str, lines)
 }
 
 fn first_line(run: &[String]) -> String {
@@ -152,42 +125,94 @@ fn first_line(run: &[String]) -> String {
     }
 }
 
-fn dft_exe() -> String {
-    BASH_SMART.to_string()
-}
-
-// Command here is copy of Cmd above, used for deserialising maps
-#[derive(Debug, Deserialize)]
-struct Command {
-    run: Vec<String>,
-    #[serde(default)]
-    args: Vec<String>,
-    #[serde(default)]
-    env: Map<String, String>,
-    #[serde(rename = "ex")]
-    #[serde(default = "dft_exe")]
-    executable: String,
-    pub description: Option<String>,
-}
-
 impl<'de> Deserialize<'de> for Cmd {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let v: Value = Deserialize::deserialize(deserializer)?;
-        if v.is_sequence() {
-            let run: Vec<String> = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(run, None, None, None, None))
-        } else {
+        fn dft_exe() -> String {
+            BASH_SMART.to_string()
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct Command {
+            #[serde(deserialize_with = "string_or_seq")]
+            run: Vec<String>,
+            #[serde(default)]
+            args: Vec<String>,
+            #[serde(default)]
+            env: Map<String, String>,
+            #[serde(rename = "ex")]
+            #[serde(default = "dft_exe")]
+            executable: String,
+            pub description: Option<String>,
+        }
+
+        let mut v: Value = Deserialize::deserialize(deserializer)?;
+        if v.is_string() || v.is_sequence() {
+            let mut m: Mapping = Mapping::with_capacity(1);
+            m.insert(Value::String("run".to_string()), v.clone());
+            v = Value::Mapping(m);
+        }
+
+        if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
-            Ok(Cmd::new(
-                c.run,
-                Some(c.args),
-                Some(c.env),
-                Some(c.executable),
-                c.description,
+            Ok(Cmd {
+                run: c.run,
+                args: c.args,
+                env: c.env,
+                executable: c.executable,
+                description: c.description,
+            })
+        } else {
+            Err(D::Error::custom(
+                "invalid type: commands must be a string, sequence, or map",
             ))
         }
     }
+}
+
+trait VecFromStr {
+    fn from_str(s: &str) -> Self;
+}
+
+impl VecFromStr for Vec<String> {
+    fn from_str(s: &str) -> Self {
+        vec![s.to_string()]
+    }
+}
+
+fn string_or_seq<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Deserialize<'de> + VecFromStr,
+    D: Deserializer<'de>,
+{
+    struct StringOrSeq<T>(PhantomData<fn() -> T>);
+
+    impl<'de, T> Visitor<'de> for StringOrSeq<T>
+    where
+        T: Deserialize<'de> + VecFromStr,
+    {
+        type Value = T;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("string or sequence")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<T, E>
+        where
+            E: de::Error,
+        {
+            Ok(VecFromStr::from_str(value))
+        }
+
+        fn visit_seq<S>(self, seq: S) -> Result<T, S::Error>
+        where
+            S: SeqAccess<'de>,
+        {
+            Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
+        }
+    }
+
+    deserializer.deserialize_any(StringOrSeq(PhantomData))
 }

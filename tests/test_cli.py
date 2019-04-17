@@ -37,11 +37,11 @@ def test_tmp_exists(run, test_path: TPath):
 
 
 def test_invalid_yaml(run, test_path: TPath):
-    test_path.write_file('donkey-make.yaml', 'foo: string')
+    test_path.write_file('donkey-make.yaml', 'foo: 123')
     p = run()
     assert p.returncode == 100
     assert p.stdout == ''
     assert p.stderr == (
         'Error parsing donkey-make.yaml:\n'
-        '  invalid type: string "string", expected struct Command at line 1 column 4\n'
+        '  invalid type: commands must be a string, sequence, or map at line 1 column 4\n'
     )
