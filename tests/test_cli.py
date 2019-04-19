@@ -17,12 +17,12 @@ def test_smart_script(run, test_path: TPath):
     """)
     p = run('foo')
     assert p.returncode == 0
-    assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
+    assert p.stdout == 'this is a test\n'
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'this is a test\n'
+        'foo > echo "this is a test"\n'
         'Command "foo" successful, took XXms\n'
     )
-    assert p.stderr == 'foo > echo "this is a test"\n'
 
 
 def test_tmp_exists(run, test_path: TPath):

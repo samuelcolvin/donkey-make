@@ -40,7 +40,7 @@ pub fn main(
     merge_maps(&mut env, &config.env);
     merge_maps(&mut env, &cmd.env);
     env.insert(DONKEY_DEPTH_ENV.to_string(), (run_depth + 1).to_string());
-    env.insert(DONKEY_FILE_ENV.to_string(), to_full_string(file_path));
+    env.insert(DONKEY_FILE_ENV.to_string(), full_path(file_path));
     env.insert(DONKEY_COMMAND_ENV.to_string(), smart_prefix.clone());
     env.insert(
         DONKEY_KEEP_ENV.to_string(),
@@ -52,7 +52,7 @@ pub fn main(
 
     let print_summary: bool = run_depth == 0;
     if print_summary {
-        printlnc!(
+        eprintlnc!(
             Green,
             r#"Running command "{}" from {}..."#,
             command_name,
@@ -138,13 +138,13 @@ fn run_command(
     let dur_str = format_duration(tic, toc);
     if status.success() {
         if print_summary {
-            printlnc!(Green, "Command \"{}\" successful, took {}", command_name, dur_str);
+            eprintlnc!(Green, "Command \"{}\" successful, took {}", command_name, dur_str);
         }
         Ok(None)
     } else {
         if print_summary {
             if let Some(c) = status.code() {
-                printlnc!(
+                eprintlnc!(
                     Yellow,
                     "Command \"{}\" failed, took {}, exit code {}",
                     command_name,
@@ -152,7 +152,7 @@ fn run_command(
                     c
                 );
             } else {
-                printlnc!(
+                eprintlnc!(
                     Yellow,
                     "Command \"{}\" kill with signal {} after {}",
                     command_name,
@@ -217,7 +217,7 @@ const NO_ECHO_PREFIX: char = '@';
 
 fn build_smart_script(cmd: &Cmd, smart_prefix: String) -> Result<String, String> {
     let donk_exe = match env::current_exe() {
-        Ok(ex) => to_full_string(&ex),
+        Ok(ex) => full_path(&ex),
         Err(e) => return err!("substituting D in smart script failed: {}", e),
     };
 
@@ -266,7 +266,7 @@ fn format_duration(tic: SystemTime, toc: SystemTime) -> String {
     }
 }
 
-fn to_full_string(path: &PathBuf) -> String {
+fn full_path(path: &PathBuf) -> String {
     match path.canonicalize() {
         Ok(p) => p.to_string_lossy().to_string(),
         _ => path.to_string_lossy().to_string(),
