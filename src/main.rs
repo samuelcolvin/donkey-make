@@ -53,13 +53,6 @@ fn run() -> Result<Option<i32>, String> {
     };
     let command = get_command(&config, &command_name, &keys)?;
 
-    printlnc!(
-        Green,
-        r#"Running command "{}" from {}..."#,
-        command_name,
-        file_path.display()
-    );
-
     let c = execute::main(&command_name, &config, &command, &cli, &file_path)?;
     Ok(c)
 }

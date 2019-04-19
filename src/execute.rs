@@ -40,7 +40,18 @@ pub fn main(
 
     let path = Path::new(&path_str);
     write(command_name, path, cmd, &args, &env)?;
-    let exit_code = run_command(command_name, cmd, &args, &env);
+
+    let print_summary: bool = next_env == 1;
+    if print_summary {
+        printlnc!(
+            Green,
+            r#"Running command "{}" from {}..."#,
+            command_name,
+            file_path.display()
+        );
+    }
+
+    let exit_code = run_command(command_name, cmd, &args, &env, print_summary);
     delete(path, cli.delete_tmp)?;
     match exit_code {
         Ok(t) => Ok(t),
@@ -94,7 +105,13 @@ fn write(command_name: &str, path: &Path, cmd: &Cmd, args: &[String], env: &StrM
     }
 }
 
-fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> Result<Option<i32>, Error> {
+fn run_command(
+    command_name: &str,
+    cmd: &Cmd,
+    args: &[String],
+    env: &StrMap,
+    print_summary: bool,
+) -> Result<Option<i32>, Error> {
     let mut c = Command::new(&cmd.executable());
     c.args(args).envs(env);
     let sig = register_signals()?;
@@ -104,11 +121,13 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> 
     let toc = SystemTime::now();
     let dur_str = format_duration(tic, toc);
     if status.success() {
-        printlnc!(Green, "Command \"{}\" successful, took {}", command_name, dur_str);
+        if print_summary {
+            printlnc!(Green, "Command \"{}\" successful, took {}", command_name, dur_str);
+        }
         Ok(None)
     } else {
-        match status.code() {
-            Some(c) => {
+        if print_summary {
+            if let Some(c) = status.code() {
                 printlnc!(
                     Yellow,
                     "Command \"{}\" failed, took {}, exit code {}",
@@ -116,9 +135,7 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> 
                     dur_str,
                     c
                 );
-                Ok(Some(c))
-            }
-            None => {
+            } else {
                 printlnc!(
                     Yellow,
                     "Command \"{}\" kill with signal {} after {}",
@@ -126,8 +143,11 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> 
                     signal_name(sig),
                     dur_str
                 );
-                Ok(Some(99))
             }
+        }
+        match status.code() {
+            Some(c) => Ok(Some(c)),
+            None => Ok(Some(99)),
         }
     }
 }
