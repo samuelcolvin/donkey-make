@@ -30,6 +30,20 @@ build:
   - cp target/release/donkey-make donk
   description: build a release version of the donkey-make binary "donk" and copy into this directory
 
-
-echo:
-  - '@echo hello'
+build-kcov:
+  run:
+  - |
+   @if test -f "./.kcov/kcov"; then
+   @echo "kcov already exist"
+   exit
+   @fi
+  - mkdir -p .kcov
+  - cd .kcov
+  - curl -L https://github.com/SimonKagstrom/kcov/archive/v36.tar.gz > kcov.tar.gz
+  - tar xzf kcov.tar.gz
+  - cd kcov-36
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - mv src/kcov ../../

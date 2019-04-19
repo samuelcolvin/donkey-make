@@ -11,22 +11,40 @@ rust:
 - stable
 - beta
 
-before_script:
+cache:
+  pip: true
+  directories:
+  - .kcov
+
+before_install:
+  - sudo apt-get update
+
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
+
+install:
 - rustup component add rustfmt
 - rustup component add clippy
 - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 - python3 get-pip.py --user
 - python3 -m pip install --user pytest
+- curl -L https://github.com/samuelcolvin/donkey-make/releases/download/v0.2/donkey-make > ./donk
+- chmod +x ./donk
+- ./donk build-kcov
 
 script:
-- cargo fmt --version
-- cargo fmt --all -- --check
-
-- cargo clippy --version
-- cargo clippy -- -D warnings
+- ./donk lint
 
 - cargo test --target $TARGET
-- python3 -m pytest tests/
+- python3 -m pytest tests/ --cov
+- bash <(curl -s https://codecov.io/bash)
 
 before_deploy:
 - cargo build --release --target $TARGET

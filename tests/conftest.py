@@ -36,7 +36,7 @@ def fix_coverage_dir():
     yield cov_dir
 
     if cov_dir.exists():
-        args = 'kcov', '--merge', 'combined', *map(str, cov_dir.iterdir())
+        args = './.kcov/kcov', '--merge', 'combined', *map(str, cov_dir.iterdir())
         run(args, check=True, cwd=str(cov_dir))
 
 
@@ -45,7 +45,7 @@ def fix_coverage(request, coverage_dir):
     if request.config.getoption('--cov'):
         cov_dir = coverage_dir / request.node.name
         cov_dir.mkdir(parents=True)
-        return 'kcov', cov_dir, '--exclude-pattern=/.cargo,/usr/lib'
+        return './.kcov/kcov', cov_dir, '--exclude-pattern=/.cargo,/usr/lib'
 
 
 @pytest.fixture(name='run')
