@@ -1,7 +1,15 @@
 import json
+import os
 import re
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
 
 from .conftest import TPath
+
+THIS_DIR = Path(__file__).parent
 
 
 def test_help(run):
@@ -119,3 +127,24 @@ def test_extra_env(run, test_path: TPath):
         'DONKEY_MAKE_DEPTH': '2',
         'DONKEY_MAKE_KEEP': '0',
     }
+
+
+@pytest.mark.skipif('--cov' not in sys.argv, reason='only run for coverage')
+def test_cargo_coverage(coverage_ex, request):
+    """
+    Run cargo tests with coverage enabled
+    """
+    args = 'cargo', 'test', '--no-run'
+    target = os.getenv('TARGET')
+    if target:
+        args += '--target', target
+    subprocess.run(args, check=True)
+
+    cov_dir = THIS_DIR / '../.coverage/cargo_test'
+    cov_dir.mkdir()
+    debug_dir = (THIS_DIR / '../target{}/debug/'.format('/' + target if target else '')).resolve()
+    path = next(p for p in debug_dir.glob('donkey_make*') if not p.name.endswith('.d'))
+    args = coverage_ex, str(cov_dir.resolve()), '--exclude-pattern=/.cargo,/usr/lib', '--verify', str(path)
+    p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    if p.returncode != 0:
+        raise RuntimeError('cargo tests failed:\n' + p.stdout)

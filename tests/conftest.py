@@ -29,28 +29,33 @@ def exe():
 
 
 @pytest.fixture(scope='session', name='coverage_ex')
-def fix_coverage_ex():
-    return str(THIS_DIR / '../.kcov/kcov')
+def fix_coverage_ex(request):
+    if request.config.getoption('--cov'):
+        return str(THIS_DIR / '../.kcov/kcov')
 
 
 @pytest.fixture(scope='session', name='coverage_dir')
 def fix_coverage_dir(coverage_ex):
-    cov_dir: Path = (THIS_DIR / '../.coverage').resolve()
-    if cov_dir.exists():
-        shutil.rmtree(cov_dir)
-    yield cov_dir
+    if not coverage_ex:
+        yield
+        return
 
+    cov_dir = THIS_DIR / '../.coverage'
     if cov_dir.exists():
-        args = coverage_ex, '--merge', 'combined', *map(str, cov_dir.iterdir())
-        run(args, check=True, cwd=str(cov_dir))
+        shutil.rmtree(str(cov_dir.resolve()))
+    cov_dir.mkdir()
+    yield cov_dir.resolve()
+
+    args = coverage_ex, '--merge', 'combined', *map(str, cov_dir.iterdir())
+    run(args, check=True, cwd=str(cov_dir))
 
 
 @pytest.fixture(name='coverage')
 def fix_coverage(request, coverage_dir, coverage_ex):
-    if request.config.getoption('--cov'):
+    if coverage_ex:
         cov_dir = coverage_dir / request.node.name
-        cov_dir.mkdir(parents=True)
-        return coverage_ex, cov_dir, '--exclude-pattern=/.cargo,/usr/lib'
+        cov_dir.mkdir()
+        return coverage_ex, str(cov_dir), '--exclude-pattern=/.cargo,/usr/lib'
 
 
 @pytest.fixture(name='run')
