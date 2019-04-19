@@ -12,5 +12,5 @@ pub struct CliArgs {
     pub file_path: Option<String>,
     pub command: Option<String>,
     pub args: Vec<String>,
-    pub delete_tmp: bool,
+    pub keep_tmp: bool,
 }

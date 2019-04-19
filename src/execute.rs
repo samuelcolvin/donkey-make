@@ -44,7 +44,7 @@ pub fn main(
     env.insert(DONKEY_COMMAND_ENV.to_string(), smart_prefix.clone());
     env.insert(
         DONKEY_KEEP_ENV.to_string(),
-        String::from(if cli.delete_tmp { "0" } else { "1" }),
+        String::from(if cli.keep_tmp { "1" } else { "0" }),
     );
 
     let path = Path::new(&path_str);
@@ -61,7 +61,7 @@ pub fn main(
     }
 
     let exit_code = run_command(command_name, cmd, &args, &env, print_summary);
-    delete(path, cli.delete_tmp)?;
+    delete(path, cli.keep_tmp)?;
     match exit_code {
         Ok(t) => Ok(t),
         Err(e) => err!(
@@ -168,8 +168,8 @@ fn run_command(
     }
 }
 
-fn delete(path: &Path, delete: bool) -> Result<(), String> {
-    if delete {
+fn delete(path: &Path, keep: bool) -> Result<(), String> {
+    if !keep {
         match fs::remove_file(path) {
             Ok(t) => t,
             Err(e) => {

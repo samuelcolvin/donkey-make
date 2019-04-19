@@ -94,12 +94,12 @@ fn parse_args() -> CliArgs {
         file_path = Some(cli_file_.to_string())
     }
 
-    let delete_tmp = if raw_args.is_present("dont_delete_tmp") {
-        false
+    let keep_tmp = if raw_args.is_present("keep_tmp") {
+        true
     } else {
         match env::var(DONKEY_KEEP_ENV) {
-            Ok(t) => t != "1",
-            _ => true,
+            Ok(t) => t == "1",
+            _ => false,
         }
     };
 
@@ -107,7 +107,7 @@ fn parse_args() -> CliArgs {
         file_path,
         command,
         args,
-        delete_tmp,
+        keep_tmp,
     }
 }
 
