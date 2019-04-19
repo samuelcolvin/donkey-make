@@ -74,7 +74,7 @@ const PATH_OPTIONS: [&str; 6] = [
     "donkey-make.yaml",
 ];
 
-pub fn find_file<'a>(file_path_opt: &Option<String>) -> Result<PathBuf, String> {
+pub fn find_file(file_path_opt: &Option<String>) -> Result<PathBuf, String> {
     if let Some(file_path) = file_path_opt {
         return Ok(PathBuf::from(file_path.clone()));
     }
