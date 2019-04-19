@@ -1,15 +1,15 @@
 # used by main::parse_args to build the command line argument parser
 name: donk
 args:
-- dont_delete_tmp:
-    short: t
-    long: dont-delete-tmp
-    help: Don't delete the temporary file ".donkey-make.tmp" upon completion, by defualt it's deleted.
+- keep_tmp:
+    short: k
+    long: keep-tmp-file
+    help: Keep the temporary files ".donkey-make.tmp*" upon completion, by default they're deleted.
     takes_value: false
 - file:
     short: f
     long: file
-    help: File in which to find commands, by default tries donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml.
+    help: File in which to find commands, by default donk.ya?ml, donkey.ya?ml, and donkey-make.ya?ml are tried.
     takes_value: true
 - command:
     required: false
@@ -19,5 +19,5 @@ args:
     multiple: true
     required: false
     help: >
-      Extra arguments to pass to the command. Use "--" if you want to use named arguments,
+      Extra arguments to pass to the command. Use "--" if you want to pass options or flags,
       eg. to add "--whatever" you might type `donk my_command -- --whatever`.

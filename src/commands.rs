@@ -1,11 +1,14 @@
+use std::env;
 use std::fmt;
 use std::fs::File;
 use std::marker::PhantomData;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use linked_hash_map::LinkedHashMap as Map;
 use serde::de::{self, Deserialize, Deserializer, Error, SeqAccess, Visitor};
 use serde_yaml::{from_reader, from_value, Mapping, Value};
+
+use crate::consts::{BASH, BASH_SMART, DONKEY_FILE_ENV};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -17,9 +20,6 @@ pub struct FileConfig {
     pub commands: Map<String, Cmd>,
     // TODO context
 }
-
-const BASH_SMART: &str = "bash-smart";
-const BASH: &str = "bash";
 
 #[derive(Debug)]
 pub struct Cmd {
@@ -74,20 +74,23 @@ const PATH_OPTIONS: [&str; 6] = [
     "donkey-make.yaml",
 ];
 
-pub fn find_file(file_path_opt: &Option<String>) -> Result<&Path, String> {
+pub fn find_file(file_path_opt: &Option<String>) -> Result<PathBuf, String> {
     if let Some(file_path) = file_path_opt {
-        return Ok(Path::new(file_path));
+        return Ok(PathBuf::from(file_path.clone()));
+    }
+    if let Ok(p) = env::var(DONKEY_FILE_ENV) {
+        return Ok(PathBuf::from(p));
     }
     for path in PATH_OPTIONS.iter() {
-        let path_option: &Path = Path::new(path);
+        let path_option = Path::new(path);
         if path_option.exists() {
-            return Ok(path_option);
+            return Ok(path_option.to_path_buf());
         }
     }
     err!("No commands file provided, and no default found, tried:\n  donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml")
 }
 
-pub fn load_file(path: &Path) -> Result<FileConfig, String> {
+pub fn load_file(path: &PathBuf) -> Result<FileConfig, String> {
     let file = match File::open(&path) {
         Ok(t) => t,
         Err(e) => {
