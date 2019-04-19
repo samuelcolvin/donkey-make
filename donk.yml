@@ -13,11 +13,6 @@ test:
   - env/bin/python -m pytest tests/
   description: run tests
 
-cargo-test-combine:
-  run:
-  - cargo test -q --no-run
-  - .kcov/kcov .coverage/cargo_test --exclude-pattern=/.cargo,/usr/lib --verify ./target/debug/donkey_make-9ab6591b78d7eea7
-
 all:
   run:
   - +lint
@@ -44,7 +39,7 @@ build-kcov:
   run:
   - |
    @if test -f "./.kcov/kcov"; then
-   @  echo "kcov already exists 👍"
+   @  echo "kcov already exists"
    @  exit
    @fi
    mkdir -p .kcov
@@ -59,5 +54,5 @@ build-kcov:
    mv src/kcov ../../
    cd ../..
    rm -r kcov.tar.gz kcov-36
-   echo "kcov downloaded 👍"
+   echo "kcov downloaded"
   description: download and build kcov
