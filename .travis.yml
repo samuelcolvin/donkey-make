@@ -37,6 +37,9 @@ install:
 - python3 -m pip install --user pytest
 - curl -L https://github.com/samuelcolvin/donkey-make/releases/download/v0.2/donkey-make > ./donk
 - chmod +x ./donk
+- pwd
+- ls -lh
+- 'echo "path: $PATH"'
 - ./donk build-kcov
 
 script:
