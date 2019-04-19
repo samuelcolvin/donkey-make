@@ -16,9 +16,6 @@ cache:
   directories:
   - .kcov
 
-before_install:
-  - sudo apt-get update
-
 addons:
   apt:
     packages:
@@ -35,15 +32,13 @@ install:
 - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 - python3 get-pip.py --user
 - python3 -m pip install --user pytest
-- curl -L https://github.com/samuelcolvin/donkey-make/releases/download/v0.2/donkey-make > ./donk
-- chmod +x ./donk
-- pwd
-- ls -lh
-- 'echo "path: $PATH"'
-- ./donk build-kcov
+- mkdir -p /home/travis/bin
+- curl -Lf https://github.com/samuelcolvin/donkey-make/releases/download/v0.2/donk > /home/travis/bin/donk
+- chmod +x /home/travis/bin/donk
+- donk build-kcov
 
 script:
-- ./donk lint
+- donk lint
 
 - cargo test --target $TARGET
 - python3 -m pytest tests/ --cov
