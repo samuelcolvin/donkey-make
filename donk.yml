@@ -7,9 +7,6 @@ lint:
   - cargo clippy -- -D warnings
   description: 'run both cargo fmt and clippy in "check" mode'
 
-format:
-  - cargo fmt
-
 test:
   run:
   - cargo test
@@ -17,10 +14,13 @@ test:
   description: run tests
 
 all:
-  - cargo fmt --all -- --check
-  - cargo clippy -- -D warnings
-  - cargo test
-  - env/bin/python -m pytest tests/
+  run:
+  - +lint
+  - +test
+  description: run lint and test
+
+format:
+  - cargo fmt
 
 build:
   run:
@@ -28,4 +28,4 @@ build:
   - export TRAVIS_COMMIT="$(git rev-parse HEAD)"
   - cargo build --release
   - cp target/release/donkey-make donk
-  description: build a release version of the donkey-make binary "donk" and copy into thie directory
+  description: build a release version of the donkey-make binary "donk" and copy into this directory

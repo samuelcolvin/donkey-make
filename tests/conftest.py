@@ -24,7 +24,8 @@ def exe():
 @pytest.fixture(name='run')
 def fix_run(exe):
     def run_exe(*args, combine=False) -> CompletedProcess:
-        kwargs = dict(stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        env = {k: v for k, v in os.environ.items() if not k.startswith('DONKEY_')}
+        kwargs = dict(stdout=PIPE, stderr=PIPE, universal_newlines=True, env=env)
         if combine:
             kwargs['stderr'] = STDOUT
         p = run([str(exe), *args], **kwargs)
