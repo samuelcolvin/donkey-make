@@ -1,7 +1,9 @@
 pub const BASH_SMART: &str = "bash-smart";
 pub const BASH: &str = "bash";
-pub const DONKEY_DEPTH_ENV: &str = "__donkey_make_depth__";
-pub const DONKEY_FILE_ENV: &str = "__donkey_make_file__";
+pub const DONKEY_DEPTH_ENV: &str = "DONKEY_MAKE_DEPTH";
+pub const DONKEY_FILE_ENV: &str = "DONKEY_MAKE_CONFIG_FILE";
+pub const DONKEY_COMMAND_ENV: &str = "DONKEY_MAKE_COMMAND";
+pub const DONKEY_KEEP_ENV: &str = "DONKEY_MAKE_KEEP";
 pub const PATH_STR: &str = ".donkey-make.tmp";
 pub const BAR: &str = "==========================================================================================";
 

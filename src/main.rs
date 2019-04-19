@@ -11,13 +11,14 @@ extern crate signal_hook;
 #[macro_use]
 mod macros;
 
+use std::env;
 use std::path::Path;
 use std::string::ToString;
 
 use ansi_term::Colour::{Cyan, Green, Red, Yellow};
 
 use crate::commands::{Cmd, FileConfig};
-use crate::consts::CliArgs;
+use crate::consts::{DONKEY_KEEP_ENV, CliArgs};
 
 mod commands;
 mod consts;
@@ -93,11 +94,20 @@ fn parse_args() -> CliArgs {
         file_path = Some(cli_file_.to_string())
     }
 
+    let delete_tmp = if raw_args.is_present("dont_delete_tmp") {
+        false
+    } else {
+        match env::var(DONKEY_KEEP_ENV) {
+            Ok(t) => t != "1".to_string(),
+            _ => true,
+        }
+    };
+
     CliArgs {
         file_path,
         command,
         args,
-        delete_tmp: !raw_args.is_present("dont_delete_tmp"),
+        delete_tmp,
     }
 }
 
