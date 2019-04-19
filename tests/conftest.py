@@ -1,10 +1,17 @@
 import os
+import shutil
 from pathlib import Path
 from subprocess import run, CompletedProcess, PIPE, STDOUT
 
 import pytest
 
 THIS_DIR = Path(__file__).parent
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        '--cov', action='store_true', default=False, help='generate coverage'
+    )
 
 
 @pytest.fixture(scope='session')
@@ -21,14 +28,39 @@ def exe():
     return bin_path.resolve()
 
 
+@pytest.fixture(scope='session', name='coverage_dir')
+def fix_coverage_dir():
+    cov_dir: Path = (THIS_DIR / '../.coverage').resolve()
+    if cov_dir.exists():
+        shutil.rmtree(cov_dir)
+    yield cov_dir
+
+    if cov_dir.exists():
+        args = 'kcov', '--merge', 'combined', *map(str, cov_dir.iterdir())
+        run(args, check=True, cwd=str(cov_dir))
+
+
+@pytest.fixture(name='coverage')
+def fix_coverage(request, coverage_dir):
+    if request.config.getoption('--cov'):
+        cov_dir = coverage_dir / request.node.name
+        cov_dir.mkdir(parents=True)
+        return 'kcov', cov_dir, '--exclude-pattern=/.cargo,/usr/lib'
+
+
 @pytest.fixture(name='run')
-def fix_run(exe):
+def fix_run(coverage, exe):
     def run_exe(*args, combine=False) -> CompletedProcess:
         env = {k: v for k, v in os.environ.items() if not k.startswith('DONKEY_')}
         kwargs = dict(stdout=PIPE, stderr=PIPE, universal_newlines=True, env=env)
         if combine:
             kwargs['stderr'] = STDOUT
-        p = run([str(exe), *args], **kwargs)
+
+        run_args = str(exe), *args
+        if coverage:
+            run_args = *coverage, *run_args
+
+        p = run(run_args, **kwargs)
         return p
 
     return run_exe
