@@ -17,8 +17,10 @@ use std::string::ToString;
 use ansi_term::Colour::{Cyan, Green, Red, Yellow};
 
 use crate::commands::{Cmd, FileConfig};
+use crate::consts::CliArgs;
 
 mod commands;
+mod consts;
 mod execute;
 
 fn main() {
@@ -39,10 +41,10 @@ fn run() -> Result<Option<i32>, String> {
     let cli = parse_args();
     let file_path = commands::find_file(&cli.file_path)?;
 
-    let config = commands::load_file(file_path)?;
+    let config = commands::load_file(&file_path)?;
     let keys: Vec<String> = config.commands.keys().cloned().collect();
 
-    let command_name = match cli.command {
+    let command_name = match &cli.command {
         Some(c) => c,
         _ => {
             help_message(&file_path, &config, &keys);
@@ -58,16 +60,8 @@ fn run() -> Result<Option<i32>, String> {
         file_path.display()
     );
 
-    let c = execute::main(&command_name, &config, &command, &cli.args, cli.delete_tmp)?;
+    let c = execute::main(&command_name, &config, &command, &cli, &file_path)?;
     Ok(c)
-}
-
-#[derive(Debug)]
-pub struct CliArgs {
-    pub file_path: Option<String>,
-    pub command: Option<String>,
-    pub args: Vec<String>,
-    pub delete_tmp: bool,
 }
 
 fn parse_args() -> CliArgs {

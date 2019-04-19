@@ -1,7 +1,8 @@
+use std::env;
 use std::fs;
 use std::io::Error;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -11,28 +12,36 @@ use ansi_term::Colour::{Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
 
 use crate::commands::{Cmd, FileConfig};
-
-const PATH_STR: &str = ".donkey-make.tmp";
-const BAR: &str = "==========================================================================================";
+use crate::consts::{CliArgs, BAR, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, PATH_STR};
 
 pub fn main(
     command_name: &str,
     config: &FileConfig,
     cmd: &Cmd,
-    cli_args: &[String],
-    delete_tmp: bool,
+    cli: &CliArgs,
+    file_path: &PathBuf,
 ) -> Result<Option<i32>, String> {
-    let mut args: Vec<String> = vec![PATH_STR.to_string()];
+    let mut path_str: String = PATH_STR.to_string();
+    let mut next_env: i32 = 1;
+    if let Ok(v) = env::var(DONKEY_DEPTH_ENV) {
+        path_str = format!("{}.{}", PATH_STR, v);
+        next_env = v.parse::<i32>().unwrap_or(1) + 1;
+    }
+
+    let mut args: Vec<String> = vec![path_str.clone()];
     args.extend(cmd.args.iter().cloned());
-    args.extend(cli_args.iter().cloned());
+    args.extend(cli.args.iter().cloned());
 
     let mut env: StrMap = Map::new();
     merge_maps(&mut env, &config.env);
     merge_maps(&mut env, &cmd.env);
+    env.insert(DONKEY_DEPTH_ENV.to_string(), format!("{}", next_env));
+    env.insert(DONKEY_FILE_ENV.to_string(), file_path.display().to_string());
 
-    write(command_name, cmd, &args, &env)?;
+    let path = Path::new(&path_str);
+    write(command_name, path, cmd, &args, &env)?;
     let exit_code = run_command(command_name, cmd, &args, &env);
-    delete(delete_tmp)?;
+    delete(path, cli.delete_tmp)?;
     match exit_code {
         Ok(t) => Ok(t),
         Err(e) => err!(
@@ -44,12 +53,11 @@ pub fn main(
     }
 }
 
-fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> Result<(), String> {
-    let path = Path::new(PATH_STR);
+fn write(command_name: &str, path: &Path, cmd: &Cmd, args: &[String], env: &StrMap) -> Result<(), String> {
     if path.exists() {
         return err!(
             "Error writing temporary file:\n  {} already exists, donkey-make may be running already",
-            PATH_STR
+            path.display()
         );
     }
 
@@ -83,7 +91,7 @@ fn write(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> Result
 
     match create_file(path, &content) {
         Ok(_) => Ok(()),
-        Err(e) => err!("Error writing temporary file {}:\n  {}", PATH_STR, e),
+        Err(e) => err!("Error writing temporary file {}:\n  {}", path.display(), e),
     }
 }
 
@@ -125,13 +133,12 @@ fn run_command(command_name: &str, cmd: &Cmd, args: &[String], env: &StrMap) -> 
     }
 }
 
-fn delete(delete: bool) -> Result<(), String> {
+fn delete(path: &Path, delete: bool) -> Result<(), String> {
     if delete {
-        let path = Path::new(PATH_STR);
         match fs::remove_file(path) {
             Ok(t) => t,
             Err(e) => {
-                return err!("Error deleting temporary file {}, {}", PATH_STR, e);
+                return err!("Error deleting temporary file {}, {}", path.display(), e);
             }
         };
     }
