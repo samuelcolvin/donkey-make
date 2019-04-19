@@ -308,6 +308,13 @@ mod tests {
     }
 
     #[test]
+    fn format_duration_negative() {
+        let tic = SystemTime::now();
+        let toc = tic + Duration::from_millis(150);
+        assert_eq!(format_duration(toc, tic), "0.000ms");
+    }
+
+    #[test]
     fn merge_add() {
         let mut base: Map<String, String> = Map::new();
         base.insert("a".to_string(), "b".to_string());

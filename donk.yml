@@ -19,6 +19,11 @@ all:
   - +test
   description: run lint and test
 
+testcov:
+  run:
+  - env/bin/python -m pytest tests/ --cov -v
+  - '@echo "tests complete, view: .coverage/combined/index.html"'
+
 format:
   - cargo fmt
 
@@ -29,3 +34,25 @@ build:
   - cargo build --release
   - cp target/release/donkey-make donk
   description: build a release version of the donkey-make binary "donk" and copy into this directory
+
+build-kcov:
+  run:
+  - |
+   @if test -f "./.kcov/kcov"; then
+   @  echo "kcov already exists"
+   @  exit
+   @fi
+   mkdir -p .kcov
+   cd .kcov
+   curl -L https://github.com/SimonKagstrom/kcov/archive/v36.tar.gz > kcov.tar.gz
+   tar xzf kcov.tar.gz
+   cd kcov-36
+   mkdir build
+   cd build
+   cmake ..
+   make
+   mv src/kcov ../../
+   cd ../..
+   rm -r kcov.tar.gz kcov-36
+   echo "kcov downloaded"
+  description: download and build kcov

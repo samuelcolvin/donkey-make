@@ -6,3 +6,5 @@
 *.py[cod]
 .pytest_cache/
 /sandbox/
+/.coverage/
+/.kcov/
