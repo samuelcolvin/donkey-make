@@ -138,7 +138,7 @@ fn run_command(
     let dur_str = format_duration(tic, toc);
     if status.success() {
         if print_summary {
-            eprintlnc!(Green, "Command \"{}\" successful in {}", command_name, dur_str);
+            eprintlnc!(Green, "Command \"{}\" successful in {} 👍", command_name, dur_str);
         }
         Ok(None)
     } else {
@@ -146,7 +146,7 @@ fn run_command(
             if let Some(c) = status.code() {
                 eprintlnc!(
                     Yellow,
-                    "Command \"{}\" failed in {}, exit code {}",
+                    "Command \"{}\" failed in {}, exit code {} 👎",
                     command_name,
                     dur_str,
                     c
@@ -154,7 +154,7 @@ fn run_command(
             } else {
                 eprintlnc!(
                     Yellow,
-                    "Command \"{}\" kill with signal {} after {}",
+                    "Command \"{}\" kill with signal {} after {} 👎",
                     command_name,
                     signal_name(sig),
                     dur_str

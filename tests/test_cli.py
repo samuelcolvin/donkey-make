@@ -48,7 +48,7 @@ def test_smart_script(run, test_path: TPath):
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
         'foo > echo "this is a test"\n'
-        'Command "foo" successful in XXms\n'
+        'Command "foo" successful in XXms 👍\n'
     )
 
 
@@ -103,7 +103,7 @@ def test_subcommands(run, test_path: TPath):
         'a\n'
         'c > b > echo b\n'
         'b\n'
-        'Command "c" successful in XXms\n'
+        'Command "c" successful in XXms 👍\n'
     )
 
 
@@ -117,7 +117,21 @@ def test_fails(run, test_path: TPath):
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "foo" from donkey-make.yaml...\n'
         'foo > exit 4\n'
-        'Command "foo" failed in XXms, exit code 4\n'
+        'Command "foo" failed in XXms, exit code 4 👎\n'
+    )
+
+
+def test_fails(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - exit 4
+    """)
+    p = run('foo', combine=True)
+    assert p.returncode == 4
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
+        'Running command "foo" from donkey-make.yaml...\n'
+        'foo > exit 4\n'
+        'Command "foo" failed in XXms, exit code 4 👎\n'
     )
 
 
