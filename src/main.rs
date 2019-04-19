@@ -18,7 +18,7 @@ use std::string::ToString;
 use ansi_term::Colour::{Cyan, Green, Red, Yellow};
 
 use crate::commands::{Cmd, FileConfig};
-use crate::consts::{DONKEY_KEEP_ENV, CliArgs};
+use crate::consts::{CliArgs, DONKEY_KEEP_ENV};
 
 mod commands;
 mod consts;
@@ -98,7 +98,7 @@ fn parse_args() -> CliArgs {
         false
     } else {
         match env::var(DONKEY_KEEP_ENV) {
-            Ok(t) => t != "1".to_string(),
+            Ok(t) => t != "1",
             _ => true,
         }
     };

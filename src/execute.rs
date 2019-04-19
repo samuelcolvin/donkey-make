@@ -12,7 +12,7 @@ use ansi_term::Colour::{Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
 
 use crate::commands::{Cmd, FileConfig};
-use crate::consts::{CliArgs, BAR, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, PATH_STR, DONKEY_COMMAND_ENV, DONKEY_KEEP_ENV};
+use crate::consts::{CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR};
 
 pub fn main(
     command_name: &str,
@@ -29,7 +29,7 @@ pub fn main(
     }
     let smart_prefix = match env::var(DONKEY_COMMAND_ENV) {
         Ok(c) => format!("{} > {}", c, command_name),
-        _ => command_name.to_string()
+        _ => command_name.to_string(),
     };
 
     let mut args: Vec<String> = vec![path_str.clone()];
@@ -42,7 +42,10 @@ pub fn main(
     env.insert(DONKEY_DEPTH_ENV.to_string(), (run_depth + 1).to_string());
     env.insert(DONKEY_FILE_ENV.to_string(), to_full_string(file_path));
     env.insert(DONKEY_COMMAND_ENV.to_string(), smart_prefix.clone());
-    env.insert(DONKEY_KEEP_ENV.to_string(), String::from(if cli.delete_tmp {"0"} else {"1"}));
+    env.insert(
+        DONKEY_KEEP_ENV.to_string(),
+        String::from(if cli.delete_tmp { "0" } else { "1" }),
+    );
 
     let path = Path::new(&path_str);
     write(command_name, path, cmd, &args, &env, smart_prefix)?;
@@ -70,7 +73,14 @@ pub fn main(
     }
 }
 
-fn write(command_name: &str, path: &Path, cmd: &Cmd, args: &[String], env: &StrMap, smart_prefix: String) -> Result<(), String> {
+fn write(
+    command_name: &str,
+    path: &Path,
+    cmd: &Cmd,
+    args: &[String],
+    env: &StrMap,
+    smart_prefix: String,
+) -> Result<(), String> {
     if path.exists() {
         return err!(
             "Error writing temporary file:\n  {} already exists, donkey-make may be running already",
@@ -202,14 +212,13 @@ fn signal_name(sig: Signal) -> &'static str {
     }
 }
 
-const DONK_PREFIX: &str = "D ";
+const DONK_PREFIX: char = 'D';
+const NO_ECHO_PREFIX: char = '@';
 
 fn build_smart_script(cmd: &Cmd, smart_prefix: String) -> Result<String, String> {
     let donk_exe = match env::current_exe() {
         Ok(ex) => to_full_string(&ex),
-        Err(e) => {
-            return err!("substituting D in smart script failed: {}", e)
-        },
+        Err(e) => return err!("substituting D in smart script failed: {}", e),
     };
 
     let all = cmd.run.join("\n");
@@ -218,22 +227,26 @@ fn build_smart_script(cmd: &Cmd, smart_prefix: String) -> Result<String, String>
 
     let mut script: Vec<String> = vec!["set -e".to_string()];
     for line in lines {
-        if !line.starts_with('@') && !line.starts_with(DONK_PREFIX) {
-            let coloured = Green.paint(format!("{} > {}", smart_prefix, line));
-            script.push(format!("echo '{}'", coloured));
+        if !line.starts_with(NO_ECHO_PREFIX) && !line.starts_with(DONK_PREFIX) {
+            let coloured = paint!(Green, format!("{} > {}", smart_prefix, line));
+            script.push(format!(">&2 echo '{}'", coloured));
         }
-        let mut ex_line= if len == 1 && !line.contains('$') {
-            // must be the first line
-            format!("{} $@", line)
+
+        let mut ex_line = if line.starts_with(NO_ECHO_PREFIX) {
+            line[1..].to_string()
         } else {
             line.to_string()
         };
+        if len == 1 && !line.contains('$') {
+            // must be the first line
+            ex_line = format!("{} $@", line)
+        }
         if ex_line.starts_with(DONK_PREFIX) {
-            ex_line = format!("{} {}", donk_exe, &ex_line[2..]);
+            ex_line = format!("{} {}", donk_exe, &ex_line[1..]);
         }
         script.push(ex_line)
     }
-    return Ok(script.join("\n"))
+    Ok(script.join("\n"))
 }
 
 type StrMap = Map<String, String>;

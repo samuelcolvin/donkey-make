@@ -22,7 +22,7 @@ def test_smart_script(run, test_path: TPath):
         'this is a test\n'
         'Command "foo" successful, took XXms\n'
     )
-    assert p.stderr == "+ echo 'this is a test'\n"
+    assert p.stderr == 'foo > echo "this is a test"\n'
 
 
 def test_tmp_exists(run, test_path: TPath):
