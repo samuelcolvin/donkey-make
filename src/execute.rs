@@ -138,7 +138,7 @@ fn run_command(
     let dur_str = format_duration(tic, toc);
     if status.success() {
         if print_summary {
-            eprintlnc!(Green, "Command \"{}\" successful, took {}", command_name, dur_str);
+            eprintlnc!(Green, "Command \"{}\" successful in {}", command_name, dur_str);
         }
         Ok(None)
     } else {
@@ -146,7 +146,7 @@ fn run_command(
             if let Some(c) = status.code() {
                 eprintlnc!(
                     Yellow,
-                    "Command \"{}\" failed, took {}, exit code {}",
+                    "Command \"{}\" failed in {}, exit code {}",
                     command_name,
                     dur_str,
                     c
@@ -212,7 +212,7 @@ fn signal_name(sig: Signal) -> &'static str {
     }
 }
 
-const DONK_PREFIX: char = 'D';
+const DONK_PREFIX: char = '+';
 const NO_ECHO_PREFIX: char = '@';
 
 fn build_smart_script(cmd: &Cmd, smart_prefix: String) -> Result<String, String> {
@@ -228,7 +228,7 @@ fn build_smart_script(cmd: &Cmd, smart_prefix: String) -> Result<String, String>
     let mut script: Vec<String> = vec!["set -e".to_string()];
     for line in lines {
         if !line.starts_with(NO_ECHO_PREFIX) && !line.starts_with(DONK_PREFIX) {
-            let coloured = paint!(Green, format!("{} > {}", smart_prefix, line));
+            let coloured = epaint!(Green, format!("{} > {}", smart_prefix, line));
             script.push(format!(">&2 echo '{}'", coloured));
         }
 

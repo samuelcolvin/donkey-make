@@ -87,7 +87,10 @@ pub fn find_file(file_path_opt: &Option<String>) -> Result<PathBuf, String> {
             return Ok(path_option.to_path_buf());
         }
     }
-    err!("No commands file provided, and no default found, tried:\n  donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml")
+    err!(
+        "No commands config file provided, and no default found, tried:\n  \
+         donk.ya?ml, donkey.ya?ml and donkey-make.ya?ml"
+    )
 }
 
 pub fn load_file(path: &PathBuf) -> Result<FileConfig, String> {

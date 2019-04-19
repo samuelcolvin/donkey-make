@@ -23,8 +23,11 @@ def exe():
 
 @pytest.fixture(name='run')
 def fix_run(exe):
-    def run_exe(*args) -> CompletedProcess:
-        p = run([str(exe), *args], stdout=PIPE, stderr=PIPE, env={'PS4': '+ '}, universal_newlines=True)
+    def run_exe(*args, combine=False) -> CompletedProcess:
+        kwargs = dict(stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        if combine:
+            kwargs['stderr'] = STDOUT
+        p = run([str(exe), *args], **kwargs)
         return p
 
     return run_exe
@@ -36,6 +39,9 @@ class TPath:
 
     def write_file(self, name, content):
         (self.path / name).write_text(content)
+
+    def __repr__(self):
+        return 'TPath(path={})'.format(self.path)
 
 
 @pytest.fixture(name='test_path')

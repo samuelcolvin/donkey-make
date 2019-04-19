@@ -38,3 +38,13 @@ macro_rules! paint {
         }
     };
 }
+
+macro_rules! epaint {
+    ($colour:expr, $msg:expr) => {
+        if atty::is(atty::Stream::Stderr) {
+            $colour.paint($msg)
+        } else {
+            ansi_term::Style::default().paint($msg)
+        }
+    };
+}

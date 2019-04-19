@@ -8,7 +8,7 @@ lint:
   description: 'run both cargo fmt and clippy in "check" mode'
 
 format:
-- cargo fmt
+  - cargo fmt
 
 test:
   run:
