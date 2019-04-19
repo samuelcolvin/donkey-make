@@ -41,7 +41,7 @@ script:
 - donk lint
 
 - cargo test --target $TARGET
-- python3 -m pytest tests/ --cov
+- python3 -m pytest tests/ --cov -v
 - bash <(curl -s https://codecov.io/bash)
 
 before_deploy:
