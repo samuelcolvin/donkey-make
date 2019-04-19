@@ -107,6 +107,20 @@ def test_subcommands(run, test_path: TPath):
     )
 
 
+def test_fails(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - exit 4
+    """)
+    p = run('foo', combine=True)
+    assert p.returncode == 4
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
+        'Running command "foo" from donkey-make.yaml...\n'
+        'foo > exit 4\n'
+        'Command "foo" failed in XXms, exit code 4\n'
+    )
+
+
 def test_extra_env(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', """
     foo:
@@ -134,16 +148,13 @@ def test_cargo_coverage(coverage_ex, request):
     """
     Run cargo tests with coverage enabled
     """
-    args = 'cargo', 'test', '--no-run'
-    target = os.getenv('TARGET')
-    if target:
-        args += '--target', target
-    subprocess.run(args, check=True)
-
     cov_dir = THIS_DIR / '../.coverage/cargo_test'
     cov_dir.mkdir()
+
+    target = os.getenv('TARGET')
     debug_dir = (THIS_DIR / '../target{}/debug/'.format('/' + target if target else '')).resolve()
     path = next(p for p in debug_dir.glob('donkey_make*') if not p.name.endswith('.d'))
+
     args = coverage_ex, str(cov_dir.resolve()), '--exclude-pattern=/.cargo,/usr/lib', '--verify', str(path)
     p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     if p.returncode != 0:
