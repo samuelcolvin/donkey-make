@@ -32,9 +32,9 @@ macro_rules! eprintlnc {
 macro_rules! paint {
     ($colour:expr, $msg:expr) => {
         if atty::is(atty::Stream::Stdout) {
-            $colour.paint($msg)
+            $colour.paint($msg).to_string()
         } else {
-            ansi_term::Style::default().paint($msg)
+            $msg.to_string()
         }
     };
 }
@@ -42,9 +42,9 @@ macro_rules! paint {
 macro_rules! epaint {
     ($colour:expr, $msg:expr) => {
         if atty::is(atty::Stream::Stderr) {
-            $colour.paint($msg)
+            $colour.paint($msg).to_string()
         } else {
-            ansi_term::Style::default().paint($msg)
+            $msg.to_string()
         }
     };
 }

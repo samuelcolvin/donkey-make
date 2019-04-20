@@ -18,7 +18,6 @@ pub struct FileConfig {
 
     #[serde(flatten)]
     pub commands: Map<String, Cmd>,
-    // TODO context
 }
 
 #[derive(Debug)]
@@ -28,7 +27,6 @@ pub struct Cmd {
     pub env: Map<String, String>,
     executable: String,
     description: Option<String>,
-    // TODO context, before
 }
 
 impl Cmd {

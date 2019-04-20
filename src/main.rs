@@ -15,7 +15,7 @@ use std::env;
 use std::path::Path;
 use std::string::ToString;
 
-use ansi_term::Colour::{Cyan, Green, Red, Yellow};
+use ansi_term::Colour::{Cyan, Green, Red};
 
 use crate::commands::{Cmd, FileConfig};
 use crate::consts::{CliArgs, DONKEY_KEEP_ENV};
@@ -127,7 +127,7 @@ fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) 
 fn summary(key: &str, config: &FileConfig) -> String {
     let cmd = &config.commands[key];
     let description = format!("- {}", &cmd.description());
-    format!("{} {}", paint!(Cyan, key), paint!(Yellow, description))
+    format!("{} {}", paint!(Cyan, key), description)
 }
 
 fn help_message(file_path: &Path, config: &FileConfig, keys: &[String]) {
