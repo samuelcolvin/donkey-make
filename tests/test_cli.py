@@ -173,7 +173,26 @@ def test_inline_subcommand(run, test_path: TPath):
     )
 
 
-def test_inline_subcommand_missing(run, test_path: TPath):
+def test_inline_env(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - <bar
+    - echo $foobar
+    bar:
+    - foobar=apple
+    """)
+    p = run('foo')
+    assert p.returncode == 0
+    assert p.stdout == 'apple\n'
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Running command "foo" from donkey-make.yaml...\n'
+        'foo > bar > foobar=apple\n'
+        'foo > echo $foobar\n'
+        'Command "foo" successful in XXms 👍\n'
+    )
+
+
+def test_inline_missing(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', """
     foo:
     - <bar
@@ -187,7 +206,7 @@ def test_inline_subcommand_missing(run, test_path: TPath):
     )
 
 
-def test_inline_subcommand_repeat(run, test_path: TPath):
+def test_inline_repeat(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', """
     foo:
     - <foo
@@ -200,7 +219,7 @@ def test_inline_subcommand_repeat(run, test_path: TPath):
     )
 
 
-def test_inline_subcommand_not_smart(run, test_path: TPath):
+def test_inline_not_smart(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', """
     foo:
     - <bar
