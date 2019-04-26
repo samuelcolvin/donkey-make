@@ -43,16 +43,15 @@ fn run() -> Result<Option<i32>, String> {
     let file_path = commands::find_file(&cli.file_path)?;
 
     let config = commands::load_file(&file_path)?;
-    let keys: Vec<String> = config.commands.keys().cloned().collect();
 
     let command_name = match &cli.command {
         Some(c) => c,
         _ => {
-            help_message(&file_path, &config, &keys);
+            help_message(&file_path, &config);
             return Ok(None);
         }
     };
-    let command = get_command(&config, &command_name, &keys)?;
+    let command = get_command(&config, &command_name)?;
 
     let c = execute::main(&command_name, &config, &command, &cli, &file_path)?;
     Ok(c)
@@ -111,14 +110,14 @@ fn parse_args() -> CliArgs {
     }
 }
 
-fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) -> Result<&'a Cmd, String> {
+fn get_command<'a>(config: &'a FileConfig, command_name: &str) -> Result<&'a Cmd, String> {
     Ok(match config.commands.get(command_name) {
         Some(c) => c,
         None => {
             return err!(
                 "Command \"{}\" not found, commands available are:\n  {}",
                 command_name,
-                keys.join(", ")
+                config.keys().join(", ")
             );
         }
     })
@@ -141,8 +140,8 @@ fn summary(key: &str, config: &FileConfig) -> String {
     )
 }
 
-fn help_message(file_path: &Path, config: &FileConfig, keys: &[String]) {
-    let commands: Vec<String> = keys.iter().map(|k| summary(k, &config)).collect();
+fn help_message(file_path: &Path, config: &FileConfig) {
+    let commands: Vec<String> = config.keys().iter().map(|k| summary(k, &config)).collect();
     printlnc!(
         Green,
         "donkey-make {}, commands available from {}:\n  {}",
