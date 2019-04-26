@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io::Error;
@@ -113,7 +114,9 @@ fn write(
             Ok(ex) => full_path(&ex),
             Err(e) => return err!("finding current executable for smart script failed: {}", e),
         };
-        build_smart_script(&cmd, smart_prefix, &donk_exe, config)?
+        let mut cmd_tree: HashSet<String> = HashSet::new();
+        cmd_tree.insert((*cmd_name).to_string());
+        build_smart_script(&cmd, smart_prefix, &donk_exe, config, &mut cmd_tree)?
     } else {
         cmd.run.join("\n")
     };
@@ -227,6 +230,7 @@ fn build_smart_script(
     smart_prefix: String,
     donk_exe: &str,
     config: &FileConfig,
+    cmd_tree: &mut HashSet<String>,
 ) -> Result<String, String> {
     let all = cmd.run.join("\n");
     let lines: Vec<&str> = all.split('\n').collect();
@@ -253,9 +257,16 @@ fn build_smart_script(
             ex_line = format!("{} {}", donk_exe, &ex_line[1..]);
         } else if ex_line.starts_with(INLINE_PREFIX) {
             let sub_cmd_name = &ex_line[1..].trim().to_string();
+            if cmd_tree.contains(sub_cmd_name) {
+                return err!(
+                    "Sub-command \"{}\" reused, this would cause infinite recursion",
+                    sub_cmd_name
+                );
+            }
+            cmd_tree.insert(sub_cmd_name.clone().to_string());
             let sub_cmd = get_sub_command(config, sub_cmd_name)?;
             let sub_cmd_prefix = format!("{} > {}", smart_prefix, sub_cmd_name);
-            ex_line = build_smart_script(sub_cmd, sub_cmd_prefix, donk_exe, config)?;
+            ex_line = build_smart_script(sub_cmd, sub_cmd_prefix, donk_exe, config, &mut *cmd_tree)?;
         }
         script.push(ex_line);
     }
