@@ -124,10 +124,22 @@ fn get_command<'a>(config: &'a FileConfig, command_name: &str, keys: &[String]) 
     })
 }
 
+const PAD_TO: usize = 14;
+
 fn summary(key: &str, config: &FileConfig) -> String {
     let cmd = &config.commands[key];
-    let description = format!("- {}", &cmd.description());
-    format!("{} {}", paint!(Cyan, key), description)
+    let pad = match key.to_string().chars().count() {
+        l if l < PAD_TO => PAD_TO - l,
+        _ => 0,
+    };
+    let sum = paint!(Green, cmd.summary());
+    format!(
+        "{}{} {} {}",
+        paint!(Cyan, key),
+        " ".repeat(pad),
+        sum,
+        cmd.description()
+    )
 }
 
 fn help_message(file_path: &Path, config: &FileConfig, keys: &[String]) {
