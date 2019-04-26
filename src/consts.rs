@@ -4,7 +4,7 @@ pub const DONKEY_DEPTH_ENV: &str = "DONKEY_MAKE_DEPTH";
 pub const DONKEY_FILE_ENV: &str = "DONKEY_MAKE_CONFIG_FILE";
 pub const DONKEY_COMMAND_ENV: &str = "DONKEY_MAKE_COMMAND";
 pub const DONKEY_KEEP_ENV: &str = "DONKEY_MAKE_KEEP";
-pub const PATH_STR: &str = ".donkey-make.tmp";
+pub const PATH_STR: &str = ".donk.tmp";
 pub const BAR: &str = "==========================================================================================";
 
 #[derive(Debug)]

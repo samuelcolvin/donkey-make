@@ -4,7 +4,7 @@ args:
 - keep_tmp:
     short: k
     long: keep-tmp-file
-    help: Keep the temporary files ".donkey-make.tmp*" upon completion, by default they're deleted.
+    help: Keep the temporary files ".donk.tmp*" upon completion, by default they're deleted.
     takes_value: false
 - file:
     short: f

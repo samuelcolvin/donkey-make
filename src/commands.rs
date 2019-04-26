@@ -45,11 +45,38 @@ impl Cmd {
         }
     }
 
+    fn first_line(&self) -> String {
+        match self.run.first() {
+            Some(f) => {
+                let mut first_line = f.clone();
+                let mut more = match self.run.len() {
+                    c if c > 1 => true,
+                    _ => false,
+                };
+                if let Some(nl) = first_line.find('\n') {
+                    more = true;
+                    first_line = first_line[..nl].to_string();
+                }
+                if more {
+                    format!("{}…", first_line.trim_end())
+                } else if first_line.chars().count() > 40 {
+                    format!("{}…", first_line[..39].to_string().trim_end())
+                } else {
+                    first_line
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
     pub fn description(&self) -> String {
-        let main = match &self.description {
+        match &self.description {
             Some(d) => d.clone(),
-            None => first_line(&self.run),
-        };
+            None => self.first_line(),
+        }
+    }
+
+    pub fn summary(&self) -> String {
         let ex_str = if self.smart() {
             "".to_string()
         } else {
@@ -59,7 +86,7 @@ impl Cmd {
             1 => "1 line".to_string(),
             c => format!("{} lines", c),
         };
-        format!("{} ({}{})", main, ex_str, lines)
+        format!("({}{})", ex_str, lines)
     }
 }
 
@@ -105,28 +132,6 @@ pub fn load_file(path: &PathBuf) -> Result<FileConfig, String> {
             return err!("Error parsing {}:\n  {}", path.display(), e);
         }
     })
-}
-
-fn first_line(run: &[String]) -> String {
-    match run.first() {
-        Some(f) => {
-            let mut first_line = f.clone();
-            let mut more = match run.len() {
-                c if c > 1 => true,
-                _ => false,
-            };
-            if let Some(nl) = first_line.find('\n') {
-                more = true;
-                first_line = first_line[..nl].to_string();
-            }
-            if more {
-                format!("{} ...", first_line)
-            } else {
-                first_line
-            }
-        }
-        None => "".to_string(),
-    }
 }
 
 impl<'de> Deserialize<'de> for Cmd {

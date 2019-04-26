@@ -23,16 +23,22 @@ def test_list_view(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', """
     foo:
     - 'echo "this is a test"'
+    - echo more
     bar:
       run: x
       description: this is the description
+    very_long:
+    - echo this is a long line with more than 40 characters in it
+    very_long_name_for_command: echo x
     """)
     p = run()
     assert p.returncode == 0
     assert re.sub(r'v[\d.]+', 'v0.0.0', p.stdout) == (
         'donkey-make v0.0.0, commands available from donkey-make.yaml:\n'
-        '  foo - echo "this is a test" (1 line)\n'
-        '  bar - this is the description (1 line)\n'
+        '  foo            (2 lines) echo "this is a test"…\n'
+        '  bar            (1 line) this is the description\n'
+        '  very_long      (1 line) echo this is a long line with more than…\n'
+        '  very_long_name_for_command (1 line) echo x\n'
     )
     assert p.stderr == ''
 
@@ -53,14 +59,14 @@ def test_smart_script(run, test_path: TPath):
 
 
 def test_tmp_exists(run, test_path: TPath):
-    test_path.write_file('.donkey-make.tmp', '.')
+    test_path.write_file('.donk.tmp', '.')
     test_path.write_file('donkey-make.yaml', 'foo: xx')
     p = run('foo')
     assert p.returncode == 100
     assert p.stdout == ''
     assert p.stderr == (
         'Error writing temporary file:\n'
-        '  .donkey-make.tmp already exists, donkey-make may be running already\n'
+        '  .donk.tmp already exists, donkey-make may be running already\n'
     )
 
 

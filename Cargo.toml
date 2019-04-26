@@ -1,6 +1,6 @@
 [package]
 name = "donkey-make"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Samuel Colvin <s@muelcolvin.com>"]
 edition = "2018"
 description = "Make for the 21st century"

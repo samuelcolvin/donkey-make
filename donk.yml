@@ -33,7 +33,7 @@ build:
   - export TRAVIS_COMMIT="$(git rev-parse HEAD)"
   - cargo build --release
   - cp target/release/donkey-make donk
-  description: build a release version of the donkey-make binary "donk" and copy into this directory
+  description: build release binary of donk and copy into this directory
 
 build-kcov:
   run:
