@@ -1,15 +1,7 @@
 import json
-import os
 import re
-import subprocess
-import sys
-from pathlib import Path
-
-import pytest
 
 from .conftest import TPath
-
-THIS_DIR = Path(__file__).parent
 
 
 def test_help(run):
@@ -47,10 +39,11 @@ def test_smart_script(run, test_path: TPath):
     test_path.write_file('donkey-make.yaml', """
     foo:
     - 'echo "this is a test"'
+    - _echo more
     """)
     p = run('foo')
     assert p.returncode == 0
-    assert p.stdout == 'this is a test\n'
+    assert p.stdout == 'this is a test\nmore\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
         'foo > echo "this is a test"\n'
@@ -163,19 +156,63 @@ def test_extra_env(run, test_path: TPath):
     }
 
 
-@pytest.mark.skipif('--cov' not in sys.argv, reason='only run for coverage')
-def test_cargo_coverage(coverage_ex, request):
-    """
-    Run cargo tests with coverage enabled
-    """
-    cov_dir = THIS_DIR / '../.coverage/cargo_test'
-    cov_dir.mkdir()
+def test_inline_subcommand(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - <bar
+    bar:
+    - echo this is bar
+    """)
+    p = run('foo')
+    assert p.returncode == 0
+    assert p.stdout == 'this is bar\n'
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Running command "foo" from donkey-make.yaml...\n'
+        'foo > bar > echo this is bar\n'
+        'Command "foo" successful in XXms 👍\n'
+    )
 
-    target = os.getenv('TARGET')
-    debug_dir = (THIS_DIR / '../target{}/debug/'.format('/' + target if target else '')).resolve()
-    path = next(p for p in debug_dir.glob('donkey_make*') if not p.name.endswith('.d'))
 
-    args = coverage_ex, str(cov_dir.resolve()), '--exclude-pattern=/.cargo,/usr/lib', '--verify', str(path)
-    p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-    if p.returncode != 0:
-        raise RuntimeError('cargo tests failed:\n' + p.stdout)
+def test_inline_subcommand_missing(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - <bar
+    """)
+    p = run('foo')
+    assert p.returncode == 100
+    assert p.stdout == ''
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Sub-command "bar" not found, commands available are:\n'
+        '  foo\n'
+    )
+
+
+def test_inline_subcommand_repeat(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - <foo
+    """)
+    p = run('foo')
+    assert p.returncode == 100
+    assert p.stdout == ''
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Command "foo" reused in an inline sub-command, this would cause infinite recursion\n'
+    )
+
+
+def test_inline_subcommand_not_smart(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - <bar
+    bar:
+      run:
+        - print(123)
+      ex: python
+    """)
+    p = run('foo')
+    assert p.returncode == 100
+    assert p.stdout == ''
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        """Sub-command "bar" not a bash-smart script, remove "ex:" or use '+' not '<'\n"""
+    )
+

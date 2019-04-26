@@ -220,7 +220,7 @@ fn signal_name(sig: Signal) -> &'static str {
     }
 }
 
-const NO_ECHO_PREFIX: char = '@';
+const NO_ECHO_PREFIX: char = '_';
 const DONK_PREFIX: char = '+';
 const INLINE_PREFIX: char = '<';
 const PREFIXES: [&char; 3] = [&NO_ECHO_PREFIX, &DONK_PREFIX, &INLINE_PREFIX];
@@ -248,18 +248,12 @@ fn build_smart_script(
         } else {
             line.to_string()
         };
-        if len == 1 && !line.contains('$') {
-            // must be the first line
-            ex_line = format!("{} $@", line)
-        }
 
-        if ex_line.starts_with(DONK_PREFIX) {
-            ex_line = format!("{} {}", donk_exe, &ex_line[1..]);
-        } else if ex_line.starts_with(INLINE_PREFIX) {
+        if ex_line.starts_with(INLINE_PREFIX) {
             let sub_cmd_name = &ex_line[1..].trim().to_string();
             if cmd_tree.contains(sub_cmd_name) {
                 return err!(
-                    "Sub-command \"{}\" reused, this would cause infinite recursion",
+                    "Command \"{}\" reused in an inline sub-command, this would cause infinite recursion",
                     sub_cmd_name
                 );
             }
@@ -267,6 +261,14 @@ fn build_smart_script(
             let sub_cmd = get_sub_command(config, sub_cmd_name)?;
             let sub_cmd_prefix = format!("{} > {}", smart_prefix, sub_cmd_name);
             ex_line = build_smart_script(sub_cmd, sub_cmd_prefix, donk_exe, config, &mut *cmd_tree)?;
+        } else {
+            if len == 1 && !line.contains('$') {
+                // must be the first line
+                ex_line = format!("{} $@", line)
+            }
+            if ex_line.starts_with(DONK_PREFIX) {
+                ex_line = format!("{} {}", donk_exe, &ex_line[1..]);
+            }
         }
         script.push(ex_line);
     }
@@ -280,7 +282,7 @@ fn get_sub_command<'a>(config: &'a FileConfig, cmd_name: &str) -> Result<&'a Cmd
                 Ok(c)
             } else {
                 err!(
-                    "Sub-command \"{}\" not a bash-smart script, remove \"ex:\" or use '{}' or '{}'",
+                    "Sub-command \"{}\" not a bash-smart script, remove \"ex:\" or use '{}' not '{}'",
                     cmd_name,
                     DONK_PREFIX,
                     INLINE_PREFIX
