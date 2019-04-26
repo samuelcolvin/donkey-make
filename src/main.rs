@@ -132,12 +132,11 @@ fn summary(key: &str, config: &FileConfig) -> String {
         l if l < PAD_TO => PAD_TO - l,
         _ => 0,
     };
-    let sum = paint!(Green, cmd.summary());
     format!(
         "{}{} {} {}",
         paint!(Cyan, key),
         " ".repeat(pad),
-        sum,
+        paint!(Green, cmd.summary()),
         cmd.description()
     )
 }
