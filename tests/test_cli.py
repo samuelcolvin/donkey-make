@@ -59,14 +59,14 @@ def test_smart_script(run, test_path: TPath):
 
 
 def test_tmp_exists(run, test_path: TPath):
-    test_path.write_file('.donkey-make.tmp', '.')
+    test_path.write_file('.donk.tmp', '.')
     test_path.write_file('donkey-make.yaml', 'foo: xx')
     p = run('foo')
     assert p.returncode == 100
     assert p.stdout == ''
     assert p.stderr == (
         'Error writing temporary file:\n'
-        '  .donkey-make.tmp already exists, donkey-make may be running already\n'
+        '  .donk.tmp already exists, donkey-make may be running already\n'
     )
 
 
