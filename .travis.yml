@@ -25,6 +25,7 @@ addons:
       - cmake
       - gcc
       - binutils-dev
+      - libbfd-dev
 
 install:
 - rustup component add rustfmt

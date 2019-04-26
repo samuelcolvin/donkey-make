@@ -20,6 +20,12 @@ pub struct FileConfig {
     pub commands: Map<String, Cmd>,
 }
 
+impl FileConfig {
+    pub fn keys(&self) -> Vec<String> {
+        self.commands.keys().cloned().collect()
+    }
+}
+
 #[derive(Debug)]
 pub struct Cmd {
     pub run: Vec<String>,
