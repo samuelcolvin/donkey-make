@@ -11,7 +11,9 @@ THIS_DIR = Path(__file__).parent
 @pytest.mark.skipif('--cov' not in sys.argv, reason='only run for coverage')
 def test_cargo_coverage(coverage_ex, request):
     """
-    Run cargo tests with coverage enabled
+    Run cargo tests with coverage enabled.
+
+    Must be run last for coverage to work properly
     """
     cov_dir = THIS_DIR / '../.coverage/cargo_test'
     cov_dir.mkdir(parents=True)
