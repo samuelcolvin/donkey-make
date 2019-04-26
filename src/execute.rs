@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use ansi_term::Colour::{Green, Yellow};
+use ansi_term::Colour::{Cyan, Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
 
 use crate::commands::{Cmd, FileConfig};
@@ -223,7 +223,7 @@ fn signal_name(sig: Signal) -> &'static str {
 const NO_ECHO_PREFIX: char = '_';
 const DONK_PREFIX: char = '+';
 const INLINE_PREFIX: char = '<';
-const PREFIXES: [&char; 3] = [&NO_ECHO_PREFIX, &DONK_PREFIX, &INLINE_PREFIX];
+const PREFIXES: [char; 3] = [NO_ECHO_PREFIX, DONK_PREFIX, INLINE_PREFIX];
 
 fn build_smart_script(
     cmd: &Cmd,
@@ -238,8 +238,8 @@ fn build_smart_script(
 
     let mut script: Vec<String> = vec!["set -e".to_string()];
     for line in lines {
-        if !PREFIXES.iter().any(|&&prefix| line.starts_with(prefix)) {
-            let coloured = epaint!(Green, format!("{} > {}", smart_prefix, line));
+        if !PREFIXES.iter().any(|&prefix| line.starts_with(prefix)) {
+            let coloured = epaint!(Cyan, format!("{} > {}", smart_prefix, line));
             script.push(format!(">&2 echo '{}'", coloured));
         }
 
