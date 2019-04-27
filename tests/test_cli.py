@@ -235,3 +235,32 @@ def test_inline_not_smart(run, test_path: TPath):
         """Sub-command "bar" not a bash-smart script, remove "ex:" or use '+' not '<'\n"""
     )
 
+
+def test_no_suggestion(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - echo testing
+    """)
+    p = run('spam')
+    assert p.returncode == 100
+    assert p.stdout == ''
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Command "spam" not found, commands available are:\n'
+        '  foo\n'
+    )
+
+
+def test_suggestion(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+    - echo testing
+    """)
+    p = run('fooo')
+    assert p.returncode == 100
+    assert p.stdout == ''
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Command "fooo" not found, commands available are:\n'
+        '  foo\n'
+        '\n'
+        '    perhaps you meant "foo"?\n'
+    )

@@ -114,13 +114,31 @@ fn get_command<'a>(config: &'a FileConfig, command_name: &str) -> Result<&'a Cmd
     Ok(match config.commands.get(command_name) {
         Some(c) => c,
         None => {
+            let keys = config.keys();
             return err!(
-                "Command \"{}\" not found, commands available are:\n  {}",
+                "Command \"{}\" not found, commands available are:\n  {}{}",
                 command_name,
-                config.keys().join(", ")
+                keys.join(", "),
+                suggestion(command_name, &keys)
             );
         }
     })
+}
+
+fn suggestion(v: &str, possibilities: &[String]) -> String {
+    let mut threshold: f64 = 0.8;
+    let mut candidate: Option<&String> = None;
+    for pv in possibilities {
+        let confidence = strsim::jaro_winkler(v, &pv);
+        if confidence > threshold {
+            threshold = confidence;
+            candidate = Some(pv);
+        }
+    }
+    match candidate {
+        Some(c) => paint!(Cyan, format!("\n\n    perhaps you meant \"{}\"?", c)),
+        _ => "".to_string(),
+    }
 }
 
 const PAD_TO: usize = 14;
