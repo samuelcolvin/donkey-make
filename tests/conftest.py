@@ -83,6 +83,9 @@ class TPath:
     def write_file(self, name, content):
         (self.path / name).write_text(content)
 
+    def __str__(self):
+        return str(self.path)
+
     def __repr__(self):
         return 'TPath(path={})'.format(self.path)
 

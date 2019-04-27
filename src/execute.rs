@@ -32,7 +32,6 @@ pub fn main(
         Ok(c) => format!("{} > {}", c, cmd_name),
         _ => cmd_name.to_string(),
     };
-
     let mut args: Vec<String> = vec![path_str.clone()];
     args.extend(cmd.args.iter().cloned());
     args.extend(cli.args.iter().cloned());
@@ -48,8 +47,9 @@ pub fn main(
         String::from(if cli.keep_tmp { "1" } else { "0" }),
     );
 
-    let path = Path::new(&path_str);
-    write(cmd_name, path, cmd, &args, &env, config, smart_prefix)?;
+    let working_dir = get_working_dir(&cmd, file_path)?;
+    let path = working_dir.join(&path_str);
+    write(cmd_name, &path, cmd, &args, &env, config, smart_prefix)?;
 
     let print_summary: bool = run_depth == 0;
     if print_summary {
@@ -61,8 +61,8 @@ pub fn main(
         );
     }
 
-    let exit_code = run_command(cmd_name, cmd, &args, &env, print_summary);
-    delete(path, cli.keep_tmp)?;
+    let exit_code = run_command(cmd_name, cmd, &args, &env, working_dir, print_summary);
+    delete(&path, cli.keep_tmp)?;
     match exit_code {
         Ok(t) => Ok(t),
         Err(e) => err!(
@@ -76,7 +76,7 @@ pub fn main(
 
 fn write(
     cmd_name: &str,
-    path: &Path,
+    path: &PathBuf,
     cmd: &Cmd,
     args: &[String],
     env: &StrMap,
@@ -134,10 +134,11 @@ fn run_command(
     cmd: &Cmd,
     args: &[String],
     env: &StrMap,
+    working_dir: PathBuf,
     print_summary: bool,
 ) -> Result<Option<i32>, Error> {
     let mut c = Command::new(&cmd.executable());
-    c.args(args).envs(env);
+    c.args(args).envs(env).current_dir(working_dir);
     let sig = register_signals()?;
 
     let tic = SystemTime::now();
@@ -176,7 +177,7 @@ fn run_command(
     }
 }
 
-fn delete(path: &Path, keep: bool) -> Result<(), String> {
+fn delete(path: &PathBuf, keep: bool) -> Result<(), String> {
     if !keep {
         match fs::remove_file(path) {
             Ok(t) => t,
@@ -318,6 +319,33 @@ fn full_path(path: &PathBuf) -> String {
     match path.canonicalize() {
         Ok(p) => p.to_string_lossy().to_string(),
         _ => path.to_string_lossy().to_string(),
+    }
+}
+
+fn get_working_dir(cmd: &Cmd, file_path: &PathBuf) -> Result<PathBuf, String> {
+    match &cmd.working_dir {
+        Some(wd) => {
+            let mut path = PathBuf::from(&wd);
+            if path.is_relative() {
+                let file_dir = match file_path.parent() {
+                    Some(p) => p,
+                    _ => return err!("file path appears to have no parent directory"),
+                };
+                path = file_dir.join(&wd).to_path_buf();
+            }
+            if !path.is_dir() {
+                err!("\"{}\" is not a directory", &wd)
+            } else {
+                Ok(match path.canonicalize() {
+                    Ok(p) => p,
+                    _ => path,
+                })
+            }
+        }
+        _ => match env::current_dir() {
+            Ok(p) => Ok(p),
+            Err(e) => err!("unable to resolve current working directory: {}", e),
+        },
     }
 }
 

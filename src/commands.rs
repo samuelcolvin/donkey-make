@@ -31,6 +31,7 @@ pub struct Cmd {
     pub run: Vec<String>,
     pub args: Vec<String>,
     pub env: Map<String, String>,
+    pub working_dir: Option<String>,
     executable: String,
     description: Option<String>,
 }
@@ -157,6 +158,7 @@ impl<'de> Deserialize<'de> for Cmd {
             args: Vec<String>,
             #[serde(default)]
             env: Map<String, String>,
+            working_dir: Option<String>,
             #[serde(rename = "ex")]
             #[serde(default = "dft_exe")]
             executable: String,
@@ -176,6 +178,7 @@ impl<'de> Deserialize<'de> for Cmd {
                 run: c.run,
                 args: c.args,
                 env: c.env,
+                working_dir: c.working_dir,
                 executable: c.executable,
                 description: c.description,
             })

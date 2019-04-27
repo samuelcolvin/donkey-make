@@ -59,7 +59,7 @@ def test_tmp_exists(run, test_path: TPath):
     assert p.stdout == ''
     assert p.stderr == (
         'Error writing temporary file:\n'
-        '  .donk.tmp already exists, donkey-make may be running already\n'
+        '  {}/.donk.tmp already exists, donkey-make may be running already\n'.format(test_path)
     )
 
 
@@ -263,4 +263,21 @@ def test_suggestion(run, test_path: TPath):
         '  foo\n'
         '\n'
         '    perhaps you meant "foo"?\n'
+    )
+
+
+def test_working_dir(run, test_path: TPath):
+    test_path.write_file('donkey-make.yaml', """
+    foo:
+      run:
+        - pwd
+      working_dir: /tmp/
+    """)
+    p = run('foo')
+    assert p.returncode == 0
+    assert p.stdout == '/tmp\n'
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Running command "foo" from donkey-make.yaml...\n'
+        'foo > pwd\n'
+        'Command "foo" successful in XXms 👍\n'
     )
