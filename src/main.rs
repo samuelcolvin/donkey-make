@@ -145,7 +145,7 @@ const PAD_TO: usize = 14;
 
 fn summary(key: &str, config: &FileConfig) -> String {
     let cmd = &config.commands[key];
-    let pad = match key.to_string().chars().count() {
+    let pad = match key.chars().count() {
         l if l < PAD_TO => PAD_TO - l,
         _ => 0,
     };
