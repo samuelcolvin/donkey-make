@@ -7,11 +7,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::mpsc::channel;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use ansi_term::Colour::{Cyan, Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
+use notify::{Watcher, RecursiveMode, watcher};
 
 use crate::commands::{Cmd, FileConfig, Repeat};
 use crate::consts::{CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR};
@@ -60,9 +62,8 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
         Some(Repeat::Periodic { interval: i }) => {
             run_command_periodic(*i, cmd_name, cmd, &args, &env, working_dir, print_summary)
         }
-        Some(Repeat::Watch { interval, dir }) => {
-            println!("interval: {:?}, dir: {:?}", interval, dir);
-            Ok(99)
+        Some(Repeat::Watch { interval: i, dir }) => {
+            run_command_watch(*i, dir, cmd_name, cmd, &args, &env, working_dir, print_summary)
         }
         None => run_command_once(cmd_name, cmd, &args, &env, &working_dir, print_summary),
     };
@@ -156,10 +157,9 @@ fn run_command_periodic(
 ) -> Result<i32, Error> {
     let sleep_ms = 20 as u64;
     let sleep_steps = (interval * 1000.0 / (sleep_ms as f32)) as u64;
-    println!("sleep steps: {:?}", sleep_steps);
     let sleep_time = Duration::from_millis(sleep_ms);
     let sig = register_signals()?;
-    // TODO
+
     loop {
         let status_code = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary, &sig)?;
         if status_code != 0 {
@@ -170,6 +170,35 @@ fn run_command_periodic(
             if signal_name(&sig).is_some() {
                 return Ok(0);
             }
+        }
+    }
+}
+
+fn run_command_watch(
+    interval: f32,
+    watch_dir: &String,
+    cmd_name: &str,
+    cmd: &Cmd,
+    args: &[String],
+    env: &StrMap,
+    working_dir: PathBuf,
+    print_summary: bool,
+) -> Result<i32, Error> {
+    let (tx, rx) = channel();
+    let delay = Duration::from_millis((interval * 1000.0) as u64);
+    let mut watcher = watcher(tx, delay).unwrap();
+    watcher.watch(watch_dir, RecursiveMode::Recursive).unwrap();
+    let sig = register_signals()?;
+
+    loop {
+        let event = rx.recv().unwrap();
+        println!("event {:?}", event);
+        if signal_name(&sig).is_some() {
+            return Ok(0);
+        }
+        let status_code = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary, &sig)?;
+        if status_code != 0 {
+            return Ok(status_code);
         }
     }
 }
