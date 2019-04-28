@@ -25,20 +25,20 @@ mod consts;
 mod execute;
 
 fn main() {
-    let optional_exit_code = match run() {
+    let exit_code = match run() {
         Err(e) => {
             eprintlnc!(Red, "{}", e);
             // use 100 to hopefully differentiate from command error codes
-            Some(100)
+            100
         }
         Ok(c) => c,
     };
-    if let Some(exit_code) = optional_exit_code {
+    if exit_code != 0 {
         std::process::exit(exit_code);
     }
 }
 
-fn run() -> Result<Option<i32>, String> {
+fn run() -> Result<i32, String> {
     let cli = parse_args();
     let file_path = commands::find_file(&cli.file_path)?;
 
@@ -48,7 +48,7 @@ fn run() -> Result<Option<i32>, String> {
         Some(c) => c,
         _ => {
             help_message(&file_path, &config);
-            return Ok(None);
+            return Ok(0);
         }
     };
     let command = get_command(&config, &command_name)?;

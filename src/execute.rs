@@ -7,12 +7,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 use ansi_term::Colour::{Cyan, Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
 
-use crate::commands::{Cmd, FileConfig};
+use crate::commands::{Cmd, FileConfig, Repeat};
 use crate::consts::{CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR};
 
 pub fn main(
@@ -21,7 +22,7 @@ pub fn main(
     cmd: &Cmd,
     cli: &CliArgs,
     file_path: &PathBuf,
-) -> Result<Option<i32>, String> {
+) -> Result<i32, String> {
     let mut path_str: String = PATH_STR.to_string();
     let mut run_depth: i32 = 0;
     if let Ok(v) = env::var(DONKEY_DEPTH_ENV) {
@@ -61,7 +62,16 @@ pub fn main(
         );
     }
 
-    let exit_code = run_command(cmd_name, cmd, &args, &env, working_dir, print_summary);
+    let exit_code = match &cmd.repeat {
+        Some(Repeat::Periodic { interval }) => {
+            run_command_periodic(interval, cmd_name, cmd, &args, &env, working_dir, print_summary)
+        }
+        Some(Repeat::Watch { interval, dir }) => {
+            println!("interval: {:?}, dir: {:?}", interval, dir);
+            Ok(99)
+        }
+        None => run_command_once(cmd_name, cmd, &args, &env, &working_dir, print_summary),
+    };
     delete(&path, cli.keep_tmp)?;
     match exit_code {
         Ok(t) => Ok(t),
@@ -129,52 +139,84 @@ fn write(
     }
 }
 
-fn run_command(
+fn run_command_once(
+    cmd_name: &str,
+    cmd: &Cmd,
+    args: &[String],
+    env: &StrMap,
+    working_dir: &PathBuf,
+    print_summary: bool,
+) -> Result<i32, Error> {
+    let sig = register_signals()?;
+
+    let (status_code, duration) = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary)?;
+    let dur_str = format_duration(duration);
+    if let Some(c) = status_code {
+        if c == 0 {
+            if print_summary {
+                eprintlnc!(Green, "Command \"{}\" successful in {} 👍", cmd_name, dur_str);
+            }
+        } else {
+            eprintlnc!(
+                Yellow,
+                "Command \"{}\" failed in {}, exit code {} 👎",
+                cmd_name,
+                dur_str,
+                c
+            );
+        }
+        Ok(c)
+    } else {
+        eprintlnc!(
+            Yellow,
+            "Command \"{}\" kill with signal {} after {} 👎",
+            cmd_name,
+            signal_name(sig),
+            dur_str
+        );
+        Ok(99)
+    }
+}
+
+fn run_command_periodic(
+    interval: &f32,
     cmd_name: &str,
     cmd: &Cmd,
     args: &[String],
     env: &StrMap,
     working_dir: PathBuf,
     print_summary: bool,
-) -> Result<Option<i32>, Error> {
+) -> Result<i32, Error> {
+    let sleep_ms = interval * 1000.0;
+    let sleep_time = Duration::from_millis(sleep_ms as u64);
+    run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary)?;
+    sleep(sleep_time);
+    // TODO
+//    loop {
+//        let sig = register_signals()?;
+//        if let Some(c) = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary)? {
+//            return Ok(Some(c));
+//        }
+//        sleep(sleep_time);
+//    }
+    Ok(0)
+}
+
+fn run_command(
+    cmd_name: &str,
+    cmd: &Cmd,
+    args: &[String],
+    env: &StrMap,
+    working_dir: &PathBuf,
+    print_summary: bool,
+) -> Result<(Option<i32>, Duration), Error> {
     let mut c = Command::new(&cmd.executable());
     c.args(args).envs(env).current_dir(working_dir);
-    let sig = register_signals()?;
 
-    let tic = SystemTime::now();
+    let instant = Instant::now();
     let status = c.status()?;
-    let toc = SystemTime::now();
-    let dur_str = format_duration(tic, toc);
-    if status.success() {
-        if print_summary {
-            eprintlnc!(Green, "Command \"{}\" successful in {} 👍", cmd_name, dur_str);
-        }
-        Ok(None)
-    } else {
-        if print_summary {
-            if let Some(c) = status.code() {
-                eprintlnc!(
-                    Yellow,
-                    "Command \"{}\" failed in {}, exit code {} 👎",
-                    cmd_name,
-                    dur_str,
-                    c
-                );
-            } else {
-                eprintlnc!(
-                    Yellow,
-                    "Command \"{}\" kill with signal {} after {} 👎",
-                    cmd_name,
-                    signal_name(sig),
-                    dur_str
-                );
-            }
-        }
-        match status.code() {
-            Some(c) => Ok(Some(c)),
-            None => Ok(Some(99)),
-        }
-    }
+    let duration = instant.elapsed();
+    Ok((status.code(), duration))
 }
 
 fn delete(path: &PathBuf, keep: bool) -> Result<(), String> {
@@ -304,8 +346,8 @@ fn merge_maps(base: &mut StrMap, update: &StrMap) {
     base.extend(update.iter().map(|(k, v)| (k.clone(), v.clone())));
 }
 
-fn format_duration(tic: SystemTime, toc: SystemTime) -> String {
-    match toc.duration_since(tic).unwrap_or(Duration::from_secs(0)) {
+fn format_duration(duration: Duration) -> String {
+    match duration {
         d if d < Duration::from_millis(10) => format!("{:0.3}ms", d.subsec_micros() as f32 / 1000.0),
         d if d < Duration::from_secs(1) => format!("{}ms", d.subsec_millis()),
         d if d < Duration::from_secs(100) => {
@@ -359,35 +401,28 @@ mod tests {
     fn format_duration_5ms() {
         let tic = SystemTime::now();
         let toc = tic + Duration::from_millis(5);
-        assert_eq!(format_duration(tic, toc), "5.000ms");
+        assert_eq!(format_duration(toc.duration_since(tic).unwrap()), "5.000ms");
     }
 
     #[test]
     fn format_duration_15ms() {
         let tic = SystemTime::now();
         let toc = tic + Duration::from_millis(15);
-        assert_eq!(format_duration(tic, toc), "15ms");
+        assert_eq!(format_duration(toc.duration_since(tic).unwrap()), "15ms");
     }
 
     #[test]
     fn format_duration_2s() {
         let tic = SystemTime::now();
         let toc = tic + Duration::from_secs(2);
-        assert_eq!(format_duration(tic, toc), "2.000s");
+        assert_eq!(format_duration(toc.duration_since(tic).unwrap()), "2.000s");
     }
 
     #[test]
     fn format_duration_200s() {
         let tic = SystemTime::now();
         let toc = tic + Duration::from_secs(200);
-        assert_eq!(format_duration(tic, toc), "200s");
-    }
-
-    #[test]
-    fn format_duration_negative() {
-        let tic = SystemTime::now();
-        let toc = tic + Duration::from_millis(150);
-        assert_eq!(format_duration(toc, tic), "0.000ms");
+        assert_eq!(format_duration(toc.duration_since(tic).unwrap()), "200s");
     }
 
     #[test]

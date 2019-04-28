@@ -26,12 +26,33 @@ impl FileConfig {
     }
 }
 
+fn dft_interval() -> f32 {
+    1.0
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "mode")]
+pub enum Repeat {
+    #[serde(rename = "periodic")]
+    Periodic {
+        #[serde(default = "dft_interval")]
+        interval: f32,
+    },
+    #[serde(rename = "watch")]
+    Watch {
+        #[serde(default = "dft_interval")]
+        interval: f32,
+        dir: String,
+    },
+}
+
 #[derive(Debug)]
 pub struct Cmd {
     pub run: Vec<String>,
     pub args: Vec<String>,
     pub env: Map<String, String>,
     pub working_dir: Option<String>,
+    pub repeat: Option<Repeat>,
     executable: String,
     description: Option<String>,
 }
@@ -159,6 +180,7 @@ impl<'de> Deserialize<'de> for Cmd {
             #[serde(default)]
             env: Map<String, String>,
             working_dir: Option<String>,
+            repeat: Option<Repeat>,
             #[serde(rename = "ex")]
             #[serde(default = "dft_exe")]
             executable: String,
@@ -179,6 +201,7 @@ impl<'de> Deserialize<'de> for Cmd {
                 args: c.args,
                 env: c.env,
                 working_dir: c.working_dir,
+                repeat: c.repeat,
                 executable: c.executable,
                 description: c.description,
             })
