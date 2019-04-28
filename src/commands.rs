@@ -30,6 +30,10 @@ fn dft_interval() -> f32 {
     1.0
 }
 
+fn dft_debounce() -> f32 {
+    0.2
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "mode")]
 pub enum Repeat {
@@ -40,8 +44,8 @@ pub enum Repeat {
     },
     #[serde(rename = "watch")]
     Watch {
-        #[serde(default = "dft_interval")]
-        interval: f32,
+        #[serde(default = "dft_debounce")]
+        debounce: f32,
         dir: String,
     },
 }
@@ -200,7 +204,7 @@ impl<'de> Deserialize<'de> for Cmd {
                 Some(Repeat::Periodic { interval: i }) if i < &0.0 => {
                     return Err(D::Error::custom("interval must be greater than or equal to 0"));
                 }
-                Some(Repeat::Watch { interval: i, .. }) if i < &0.0 => {
+                Some(Repeat::Watch { debounce: d, .. }) if d < &0.0 => {
                     return Err(D::Error::custom("interval must be greater than or equal to 0"));
                 }
                 _ => (),

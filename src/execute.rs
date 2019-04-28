@@ -6,14 +6,14 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::sync::mpsc::channel;
+use std::sync::Arc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use ansi_term::Colour::{Cyan, Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
-use notify::{Watcher, RecursiveMode, watcher};
+use notify::{raw_watcher, RawEvent, RecursiveMode, Watcher};
 
 use crate::commands::{Cmd, FileConfig, Repeat};
 use crate::consts::{CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR};
@@ -60,12 +60,12 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
 
     let exit_code = match &cmd.repeat {
         Some(Repeat::Periodic { interval: i }) => {
-            run_command_periodic(*i, cmd_name, cmd, &args, &env, working_dir, print_summary)
+            run_command_periodic(*i, cmd_name, cmd, &args, &env, working_dir, print_summary).map_err(error_str)
         }
-        Some(Repeat::Watch { interval: i, dir }) => {
-            run_command_watch(*i, dir, cmd_name, cmd, &args, &env, working_dir, print_summary)
+        Some(Repeat::Watch { debounce: d, dir }) => {
+            run_command_watch(*d, dir, cmd_name, cmd, &args, &env, working_dir, print_summary)
         }
-        None => run_command_once(cmd_name, cmd, &args, &env, &working_dir, print_summary),
+        None => run_command_once(cmd_name, cmd, &args, &env, &working_dir, print_summary).map_err(error_str),
     };
     delete(&path, cli.keep_tmp)?;
     match exit_code {
@@ -146,6 +146,8 @@ fn run_command_once(
     run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary, &sig)
 }
 
+const WAIT_MS: u64 = 20;
+
 fn run_command_periodic(
     interval: f32,
     cmd_name: &str,
@@ -155,9 +157,8 @@ fn run_command_periodic(
     working_dir: PathBuf,
     print_summary: bool,
 ) -> Result<i32, Error> {
-    let sleep_ms = 20 as u64;
-    let sleep_steps = (interval * 1000.0 / (sleep_ms as f32)) as u64;
-    let sleep_time = Duration::from_millis(sleep_ms);
+    let sleep_steps = (interval * 1000.0 / (WAIT_MS as f32)) as u64;
+    let sleep_time = Duration::from_millis(WAIT_MS);
     let sig = register_signals()?;
 
     loop {
@@ -175,30 +176,52 @@ fn run_command_periodic(
 }
 
 fn run_command_watch(
-    interval: f32,
-    watch_dir: &String,
+    debounce: f32,
+    watch_dir: &str,
     cmd_name: &str,
     cmd: &Cmd,
     args: &[String],
     env: &StrMap,
     working_dir: PathBuf,
     print_summary: bool,
-) -> Result<i32, Error> {
-    let (tx, rx) = channel();
-    let delay = Duration::from_millis((interval * 1000.0) as u64);
-    let mut watcher = watcher(tx, delay).unwrap();
-    watcher.watch(watch_dir, RecursiveMode::Recursive).unwrap();
-    let sig = register_signals()?;
+) -> Result<i32, String> {
+    let debounce_dur = Duration::from_millis((debounce * 1000.0) as u64);
+    let recv_timeout = Duration::from_millis(WAIT_MS);
 
+    let (tx, rx) = channel();
+    let mut watcher = raw_watcher(tx).map_err(error_str)?;
+    watcher.watch(watch_dir, RecursiveMode::Recursive).map_err(error_str)?;
+    let sig = register_signals().map_err(error_str)?;
+
+    let mut first_event: Option<Instant> = None;
+    let mut events: Vec<RawEvent> = Vec::new();
     loop {
-        let event = rx.recv().unwrap();
-        println!("event {:?}", event);
-        if signal_name(&sig).is_some() {
-            return Ok(0);
+        loop {
+            if let Ok(evt) = rx.recv_timeout(recv_timeout) {
+                events.push(evt);
+                if first_event.is_none() {
+                    first_event = Some(Instant::now());
+                }
+            }
+            if signal_name(&sig).is_some() {
+                return Ok(0);
+            }
+            if let Some(i) = first_event {
+                if i.elapsed() > debounce_dur {
+                    break;
+                }
+            }
         }
-        let status_code = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary, &sig)?;
+        println!("event: {:?}", events);
+        first_event = None;
+        events.clear();
+        let status_code =
+            run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary, &sig).map_err(error_str)?;
         if status_code != 0 {
             return Ok(status_code);
+        }
+        if signal_name(&sig).is_some() {
+            return Ok(0);
         }
     }
 }
@@ -215,9 +238,9 @@ fn run_command(
     let mut c = Command::new(&cmd.executable());
     c.args(args).envs(env).current_dir(working_dir);
 
-    let instant = Instant::now();
+    let start = Instant::now();
     let status = c.status()?;
-    let duration = instant.elapsed();
+    let duration = start.elapsed();
     let dur_str = format_duration(duration);
     if let Some(c) = status.code() {
         if c == 0 {
@@ -416,6 +439,13 @@ fn get_working_dir(cmd: &Cmd, file_path: &PathBuf) -> Result<PathBuf, String> {
             Err(e) => err!("unable to resolve current working directory: {}", e),
         },
     }
+}
+
+fn error_str<T>(e: T) -> String
+where
+    T: std::fmt::Display,
+{
+    format!("{}", e)
 }
 
 #[cfg(test)]
