@@ -23,6 +23,7 @@ use crate::consts::{CliArgs, DONKEY_KEEP_ENV};
 mod commands;
 mod consts;
 mod execute;
+mod prepare;
 
 fn main() {
     let exit_code = match run() {
@@ -51,9 +52,10 @@ fn run() -> Result<i32, String> {
             return Ok(0);
         }
     };
-    let command = get_command(&config, &command_name)?;
+    let cmd = get_command(&config, &command_name)?;
 
-    let c = execute::main(&command_name, &config, &command, &cli, &file_path)?;
+    let run = prepare::main(&command_name, &config, &cmd, &cli, &file_path)?;
+    let c = execute::main(&run, &cmd, &cli)?;
     Ok(c)
 }
 
