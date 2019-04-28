@@ -196,6 +196,15 @@ impl<'de> Deserialize<'de> for Cmd {
 
         if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
+            match &c.repeat {
+                Some(Repeat::Periodic { interval: i }) if i < &0.0 => {
+                    return Err(D::Error::custom("interval must be greater than or equal to 0"));
+                }
+                Some(Repeat::Watch { interval: i, .. }) if i < &0.0 => {
+                    return Err(D::Error::custom("interval must be greater than or equal to 0"));
+                }
+                _ => (),
+            };
             Ok(Cmd {
                 run: c.run,
                 args: c.args,

@@ -16,13 +16,7 @@ use linked_hash_map::LinkedHashMap as Map;
 use crate::commands::{Cmd, FileConfig, Repeat};
 use crate::consts::{CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR};
 
-pub fn main(
-    cmd_name: &str,
-    config: &FileConfig,
-    cmd: &Cmd,
-    cli: &CliArgs,
-    file_path: &PathBuf,
-) -> Result<i32, String> {
+pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_path: &PathBuf) -> Result<i32, String> {
     let mut path_str: String = PATH_STR.to_string();
     let mut run_depth: i32 = 0;
     if let Ok(v) = env::var(DONKEY_DEPTH_ENV) {
@@ -63,8 +57,8 @@ pub fn main(
     }
 
     let exit_code = match &cmd.repeat {
-        Some(Repeat::Periodic { interval }) => {
-            run_command_periodic(interval, cmd_name, cmd, &args, &env, working_dir, print_summary)
+        Some(Repeat::Periodic { interval: i }) => {
+            run_command_periodic(*i, cmd_name, cmd, &args, &env, working_dir, print_summary)
         }
         Some(Repeat::Watch { interval, dir }) => {
             println!("interval: {:?}, dir: {:?}", interval, dir);
@@ -148,10 +142,55 @@ fn run_command_once(
     print_summary: bool,
 ) -> Result<i32, Error> {
     let sig = register_signals()?;
+    run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary, &sig)
+}
 
-    let (status_code, duration) = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary)?;
+fn run_command_periodic(
+    interval: f32,
+    cmd_name: &str,
+    cmd: &Cmd,
+    args: &[String],
+    env: &StrMap,
+    working_dir: PathBuf,
+    print_summary: bool,
+) -> Result<i32, Error> {
+    let sleep_ms = 20 as u64;
+    let sleep_steps = (interval * 1000.0 / (sleep_ms as f32)) as u64;
+    println!("sleep steps: {:?}", sleep_steps);
+    let sleep_time = Duration::from_millis(sleep_ms);
+    let sig = register_signals()?;
+    // TODO
+    loop {
+        let status_code = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary, &sig)?;
+        if status_code != 0 {
+            return Ok(status_code);
+        }
+        for _ in 0..sleep_steps {
+            sleep(sleep_time);
+            if signal_name(&sig).is_some() {
+                return Ok(0);
+            }
+        }
+    }
+}
+
+fn run_command(
+    cmd_name: &str,
+    cmd: &Cmd,
+    args: &[String],
+    env: &StrMap,
+    working_dir: &PathBuf,
+    print_summary: bool,
+    sig: &Signal,
+) -> Result<i32, Error> {
+    let mut c = Command::new(&cmd.executable());
+    c.args(args).envs(env).current_dir(working_dir);
+
+    let instant = Instant::now();
+    let status = c.status()?;
+    let duration = instant.elapsed();
     let dur_str = format_duration(duration);
-    if let Some(c) = status_code {
+    if let Some(c) = status.code() {
         if c == 0 {
             if print_summary {
                 eprintlnc!(Green, "Command \"{}\" successful in {} 👍", cmd_name, dur_str);
@@ -171,52 +210,11 @@ fn run_command_once(
             Yellow,
             "Command \"{}\" kill with signal {} after {} 👎",
             cmd_name,
-            signal_name(sig),
+            signal_name(sig).unwrap_or("UNKNOWN"),
             dur_str
         );
         Ok(99)
     }
-}
-
-fn run_command_periodic(
-    interval: &f32,
-    cmd_name: &str,
-    cmd: &Cmd,
-    args: &[String],
-    env: &StrMap,
-    working_dir: PathBuf,
-    print_summary: bool,
-) -> Result<i32, Error> {
-    let sleep_ms = interval * 1000.0;
-    let sleep_time = Duration::from_millis(sleep_ms as u64);
-    run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary)?;
-    sleep(sleep_time);
-    // TODO
-//    loop {
-//        let sig = register_signals()?;
-//        if let Some(c) = run_command(cmd_name, cmd, &args, &env, &working_dir, print_summary)? {
-//            return Ok(Some(c));
-//        }
-//        sleep(sleep_time);
-//    }
-    Ok(0)
-}
-
-fn run_command(
-    cmd_name: &str,
-    cmd: &Cmd,
-    args: &[String],
-    env: &StrMap,
-    working_dir: &PathBuf,
-    print_summary: bool,
-) -> Result<(Option<i32>, Duration), Error> {
-    let mut c = Command::new(&cmd.executable());
-    c.args(args).envs(env).current_dir(working_dir);
-
-    let instant = Instant::now();
-    let status = c.status()?;
-    let duration = instant.elapsed();
-    Ok((status.code(), duration))
 }
 
 fn delete(path: &PathBuf, keep: bool) -> Result<(), String> {
@@ -253,13 +251,13 @@ fn register_signals() -> Result<Signal, Error> {
     Ok(sig)
 }
 
-fn signal_name(sig: Signal) -> &'static str {
+fn signal_name(sig: &Signal) -> Option<&'static str> {
     if sig.int.load(Ordering::Relaxed) {
-        "SIGINT"
+        Some("SIGINT")
     } else if sig.term.load(Ordering::Relaxed) {
-        "SIGTERM"
+        Some("SIGTERM")
     } else {
-        "UNKNOWN"
+        None
     }
 }
 
