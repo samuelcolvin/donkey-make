@@ -69,7 +69,11 @@ fn run_command_periodic(run: &Run, cmd: &Cmd, interval: f32) -> Result<i32, Erro
 }
 
 fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_dir: &str) -> Result<i32, String> {
-    let debounce_dur = Duration::from_millis((debounce * 1000.0) as u64);
+    // minimum time for which events will be grouped together
+    let debounce_min = Duration::from_millis((debounce * 1000.0) as u64);
+    // maximum time for which events will be grouped, if this time is reached the command will be run regardless
+    // of whether an event happened recently
+    let debounce_max = debounce_min * 4;
     let recv_timeout = Duration::from_millis(WAIT_MS);
 
     let (tx, rx) = channel();
@@ -78,26 +82,34 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_dir: &str) -> Re
     let sig = register_signals().map_err(error_str)?;
 
     let mut first_event: Option<Instant> = None;
+    let mut last_event: Option<Instant> = None;
     let mut events: Vec<RawEvent> = Vec::new();
     loop {
         loop {
             if let Ok(evt) = rx.recv_timeout(recv_timeout) {
                 events.push(evt);
+                last_event = Some(Instant::now());
                 if first_event.is_none() {
-                    first_event = Some(Instant::now());
+                    first_event = last_event;
                 }
             }
             if signal_name(&sig).is_some() {
                 return Ok(0);
             }
+            if let Some(i) = last_event {
+                if i.elapsed() > debounce_min {
+                    break;
+                }
+            }
             if let Some(i) = first_event {
-                if i.elapsed() > debounce_dur {
+                if i.elapsed() > debounce_max {
                     break;
                 }
             }
         }
         println!("event: {:?}", events);
         first_event = None;
+        last_event = None;
         events.clear();
         let status_code = run_command(run, cmd, &sig).map_err(error_str)?;
         if status_code != 0 {
