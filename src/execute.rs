@@ -21,13 +21,14 @@ pub struct Run {
     pub env: Map<String, String>,
     pub working_dir: PathBuf,
     pub tmp_path: PathBuf,
+    pub file_path: PathBuf,
     pub print_summary: bool,
 }
 
 pub fn main(run: &Run, cmd: &Cmd, cli: &CliArgs) -> Result<i32, String> {
     let exit_code = match &cmd.repeat {
         Some(Repeat::Periodic { interval: i }) => run_command_periodic(&run, &cmd, *i).map_err(error_str),
-        Some(Repeat::Watch { debounce: d, dir }) => run_command_watch(&run, &cmd, *d, dir),
+        Some(Repeat::Watch { debounce: d, path }) => run_command_watch(&run, &cmd, *d, path),
         None => run_command_once(&run, &cmd).map_err(error_str),
     };
     delete(&run.tmp_path, cli.keep_tmp)?;
@@ -43,6 +44,14 @@ pub fn main(run: &Run, cmd: &Cmd, cli: &CliArgs) -> Result<i32, String> {
 }
 
 fn run_command_once(run: &Run, cmd: &Cmd) -> Result<i32, Error> {
+    if run.print_summary {
+        eprintlnc!(
+            Green,
+            "Running command \"{}\" from {}...",
+            run.cmd_name,
+            run.file_path.display()
+        );
+    }
     let sig = register_signals()?;
     run_command(run, cmd, &sig)
 }
@@ -50,6 +59,13 @@ fn run_command_once(run: &Run, cmd: &Cmd) -> Result<i32, Error> {
 const WAIT_MS: u64 = 20;
 
 fn run_command_periodic(run: &Run, cmd: &Cmd, interval: f32) -> Result<i32, Error> {
+    eprintlnc!(
+        Green,
+        "Running command \"{}\" from {}, repeating at {:0.2}s intervals...",
+        run.cmd_name,
+        run.file_path.display(),
+        interval
+    );
     let sleep_steps = (interval * 1000.0 / (WAIT_MS as f32)) as u64;
     let sleep_time = Duration::from_millis(WAIT_MS);
     let sig = register_signals()?;
@@ -68,7 +84,14 @@ fn run_command_periodic(run: &Run, cmd: &Cmd, interval: f32) -> Result<i32, Erro
     }
 }
 
-fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_dir: &str) -> Result<i32, String> {
+fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_path: &str) -> Result<i32, String> {
+    eprintlnc!(
+        Green,
+        "Running command \"{}\" from {}, repeating on file changes in \"{}\"...",
+        run.cmd_name,
+        run.file_path.display(),
+        watch_path
+    );
     // minimum time for which events will be grouped together
     let debounce_min = Duration::from_millis((debounce * 1000.0) as u64);
     // maximum time for which events will be grouped, if this time is reached the command will be run regardless
@@ -78,7 +101,7 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_dir: &str) -> Re
 
     let (tx, rx) = channel();
     let mut watcher = raw_watcher(tx).map_err(error_str)?;
-    watcher.watch(watch_dir, RecursiveMode::Recursive).map_err(error_str)?;
+    watcher.watch(watch_path, RecursiveMode::Recursive).map_err(error_str)?;
     let sig = register_signals().map_err(error_str)?;
 
     let mut first_event: Option<Instant> = None;
@@ -147,7 +170,7 @@ fn run_command(run: &Run, cmd: &Cmd, sig: &Signal) -> Result<i32, Error> {
     } else {
         eprintlnc!(
             Yellow,
-            "Command \"{}\" kill with signal {} after {} 👎",
+            "Command \"{}\" kill with signal {} after {} ✋",
             run.cmd_name,
             signal_name(sig).unwrap_or("UNKNOWN"),
             dur_str
@@ -215,7 +238,6 @@ fn format_duration(duration: Duration) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linked_hash_map::LinkedHashMap as Map;
     use std::time::{Duration, SystemTime};
 
     #[test]
@@ -244,25 +266,5 @@ mod tests {
         let tic = SystemTime::now();
         let toc = tic + Duration::from_secs(200);
         assert_eq!(format_duration(toc.duration_since(tic).unwrap()), "200s");
-    }
-
-    #[test]
-    fn merge_add() {
-        let mut base: Map<String, String> = Map::new();
-        base.insert("a".to_string(), "b".to_string());
-        let mut update: Map<String, String> = Map::new();
-        update.insert("c".to_string(), "d".to_string());
-        merge_maps(&mut base, &update);
-        assert_eq!(format!("{:?}", base), r#"{"a": "b", "c": "d"}"#);
-    }
-
-    #[test]
-    fn merge_update() {
-        let mut base: Map<String, String> = Map::new();
-        base.insert("a".to_string(), "b".to_string());
-        let mut update: Map<String, String> = Map::new();
-        update.insert("a".to_string(), "d".to_string());
-        merge_maps(&mut base, &update);
-        assert_eq!(format!("{:?}", base), r#"{"a": "d"}"#);
     }
 }

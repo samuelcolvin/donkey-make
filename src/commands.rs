@@ -46,7 +46,7 @@ pub enum Repeat {
     Watch {
         #[serde(default = "dft_debounce")]
         debounce: f32,
-        dir: String,
+        path: String,
     },
 }
 

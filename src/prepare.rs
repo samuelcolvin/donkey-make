@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use ansi_term::Colour::{Cyan, Green};
+use ansi_term::Colour::Cyan;
 use linked_hash_map::LinkedHashMap as Map;
 
 use crate::commands::{Cmd, FileConfig};
@@ -41,23 +41,14 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
     let tmp_path = working_dir.join(&path_str);
     write(cmd_name, &tmp_path, cmd, &args, &env, config, smart_prefix)?;
 
-    let print_summary: bool = run_depth == 0;
-    if print_summary {
-        eprintlnc!(
-            Green,
-            r#"Running command "{}" from {}..."#,
-            cmd_name,
-            file_path.display()
-        );
-    }
-
     Ok(Run {
         cmd_name: cmd_name.to_string(),
         args,
         env,
         working_dir,
         tmp_path,
-        print_summary,
+        file_path: file_path.to_path_buf(),
+        print_summary: run_depth == 0,
     })
 }
 
