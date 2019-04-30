@@ -13,7 +13,7 @@ use linked_hash_map::LinkedHashMap as Map;
 use notify::{raw_watcher, RawEvent, RecursiveMode, Watcher};
 
 use crate::commands::{Cmd, Repeat};
-use crate::consts::CliArgs;
+use crate::utils::{full_path, CliArgs};
 
 pub struct Run {
     pub cmd_name: String,
@@ -22,13 +22,14 @@ pub struct Run {
     pub working_dir: PathBuf,
     pub tmp_path: PathBuf,
     pub file_path: PathBuf,
+    pub watch_path: Option<PathBuf>,
     pub print_summary: bool,
 }
 
 pub fn main(run: &Run, cmd: &Cmd, cli: &CliArgs) -> Result<i32, String> {
     let exit_code = match &cmd.repeat {
         Some(Repeat::Periodic { interval: i }) => run_command_periodic(&run, &cmd, *i).map_err(error_str),
-        Some(Repeat::Watch { debounce: d, path }) => run_command_watch(&run, &cmd, *d, path),
+        Some(Repeat::Watch { debounce: d, .. }) => run_command_watch(&run, &cmd, *d),
         None => run_command_once(&run, &cmd).map_err(error_str),
     };
     delete(&run.tmp_path, cli.keep_tmp)?;
@@ -84,13 +85,17 @@ fn run_command_periodic(run: &Run, cmd: &Cmd, interval: f32) -> Result<i32, Erro
     }
 }
 
-fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_path: &str) -> Result<i32, String> {
+fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String> {
+    let watch_path = match &run.watch_path {
+        Some(p) => p,
+        _ => panic!("watch_path not set"),
+    };
     eprintlnc!(
         Green,
         "Running command \"{}\" from {}, repeating on file changes in \"{}\"...",
         run.cmd_name,
         run.file_path.display(),
-        watch_path
+        full_path(watch_path)
     );
     // minimum time for which events will be grouped together
     let debounce_min = Duration::from_millis((debounce * 1000.0) as u64);
@@ -108,6 +113,13 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_path: &str) -> R
     let mut last_event: Option<Instant> = None;
     let mut events: Vec<RawEvent> = Vec::new();
     loop {
+        let status_code = run_command(run, cmd, &sig).map_err(error_str)?;
+        if status_code != 0 {
+            return Ok(status_code);
+        }
+        if signal_name(&sig).is_some() {
+            return Ok(0);
+        }
         loop {
             if let Ok(evt) = rx.recv_timeout(recv_timeout) {
                 events.push(evt);
@@ -134,13 +146,6 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32, watch_path: &str) -> R
         first_event = None;
         last_event = None;
         events.clear();
-        let status_code = run_command(run, cmd, &sig).map_err(error_str)?;
-        if status_code != 0 {
-            return Ok(status_code);
-        }
-        if signal_name(&sig).is_some() {
-            return Ok(0);
-        }
     }
 }
 

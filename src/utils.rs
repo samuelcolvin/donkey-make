@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 pub const BASH_SMART: &str = "bash-smart";
 pub const BASH: &str = "bash";
 pub const DONKEY_DEPTH_ENV: &str = "DONKEY_MAKE_DEPTH";
@@ -13,4 +15,11 @@ pub struct CliArgs {
     pub command: Option<String>,
     pub args: Vec<String>,
     pub keep_tmp: bool,
+}
+
+pub fn full_path(path: &PathBuf) -> String {
+    match path.canonicalize() {
+        Ok(p) => p.to_string_lossy().to_string(),
+        _ => path.to_string_lossy().to_string(),
+    }
 }

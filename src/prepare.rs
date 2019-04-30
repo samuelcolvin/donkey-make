@@ -7,9 +7,11 @@ use std::path::{Path, PathBuf};
 use ansi_term::Colour::Cyan;
 use linked_hash_map::LinkedHashMap as Map;
 
-use crate::commands::{Cmd, FileConfig};
-use crate::consts::{CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR};
+use crate::commands::{Cmd, FileConfig, Repeat};
 use crate::execute::Run;
+use crate::utils::{
+    full_path, CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR,
+};
 
 pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_path: &PathBuf) -> Result<Run, String> {
     let mut path_str: String = PATH_STR.to_string();
@@ -38,6 +40,21 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
     );
 
     let working_dir = get_working_dir(&cmd, file_path)?;
+
+    let watch_path: Option<PathBuf> = match &cmd.repeat {
+        Some(Repeat::Watch { path, .. }) => {
+            let mut p = PathBuf::from(path);
+            if p.is_relative() {
+                p = working_dir.join(&p).to_path_buf();
+            }
+            if !p.exists() {
+                return err!("The watch directory \"{}\" does not exist", full_path(&p));
+            }
+            Some(p)
+        }
+        _ => None,
+    };
+
     let tmp_path = working_dir.join(&path_str);
     write(cmd_name, &tmp_path, cmd, &args, &env, config, smart_prefix)?;
 
@@ -48,6 +65,7 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
         working_dir,
         tmp_path,
         file_path: file_path.to_path_buf(),
+        watch_path,
         print_summary: run_depth == 0,
     })
 }
@@ -194,13 +212,6 @@ fn merge_maps(base: &mut Map<String, String>, update: &Map<String, String>) {
     base.extend(update.iter().map(|(k, v)| (k.clone(), v.clone())));
 }
 
-fn full_path(path: &PathBuf) -> String {
-    match path.canonicalize() {
-        Ok(p) => p.to_string_lossy().to_string(),
-        _ => path.to_string_lossy().to_string(),
-    }
-}
-
 fn get_working_dir(cmd: &Cmd, file_path: &PathBuf) -> Result<PathBuf, String> {
     match &cmd.working_dir {
         Some(wd) => {
@@ -208,7 +219,7 @@ fn get_working_dir(cmd: &Cmd, file_path: &PathBuf) -> Result<PathBuf, String> {
             if path.is_relative() {
                 let file_dir = match file_path.parent() {
                     Some(p) => p,
-                    _ => return err!("file path appears to have no parent directory"),
+                    _ => return err!("\"{}\" path appears to have no parent directory", file_path.display()),
                 };
                 path = file_dir.join(&wd).to_path_buf();
             }

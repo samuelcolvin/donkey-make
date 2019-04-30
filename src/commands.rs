@@ -8,7 +8,7 @@ use linked_hash_map::LinkedHashMap as Map;
 use serde::de::{self, Deserialize, Deserializer, Error, SeqAccess, Visitor};
 use serde_yaml::{from_reader, from_value, Mapping, Value};
 
-use crate::consts::{BASH, BASH_SMART, DONKEY_FILE_ENV};
+use crate::utils::{BASH, BASH_SMART, DONKEY_FILE_ENV};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -34,6 +34,10 @@ fn dft_debounce() -> f32 {
     0.2
 }
 
+fn dft_path() -> String {
+    ".".to_string()
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "mode")]
 pub enum Repeat {
@@ -46,6 +50,7 @@ pub enum Repeat {
     Watch {
         #[serde(default = "dft_debounce")]
         debounce: f32,
+        #[serde(default = "dft_path")]
         path: String,
     },
 }

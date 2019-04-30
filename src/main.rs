@@ -18,12 +18,12 @@ use std::string::ToString;
 use ansi_term::Colour::{Cyan, Green, Red};
 
 use crate::commands::{Cmd, FileConfig};
-use crate::consts::{CliArgs, DONKEY_KEEP_ENV};
+use crate::utils::{CliArgs, DONKEY_KEEP_ENV};
 
 mod commands;
-mod consts;
 mod execute;
 mod prepare;
+mod utils;
 
 fn main() {
     let exit_code = match run() {
