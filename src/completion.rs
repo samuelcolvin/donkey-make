@@ -1,5 +1,5 @@
-use std::path::Path;
 use std::env;
+use std::path::Path;
 
 use crate::commands;
 
@@ -17,17 +17,12 @@ pub fn main() -> bool {
     } else {
         return false;
     }
-    return true;
+    true
 }
 
 fn complete_command(args: Vec<String>) -> Result<(), String> {
-    let file_path = if args.iter().count() == 3 {
-        let path_str = args[2].clone();
-        if Path::new(&path_str).exists() {
-            Some(path_str)
-        } else {
-            None
-        }
+    let file_path = if args.iter().count() == 3 && Path::new(&args[2]).is_file() {
+        Some(args[2].clone())
     } else {
         None
     };
