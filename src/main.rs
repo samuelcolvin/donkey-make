@@ -23,6 +23,7 @@ use crate::consts::{CliArgs, DONKEY_KEEP_ENV};
 mod commands;
 mod consts;
 mod execute;
+mod completion;
 
 fn main() {
     let optional_exit_code = match run() {
@@ -39,6 +40,9 @@ fn main() {
 }
 
 fn run() -> Result<Option<i32>, String> {
+    if completion::main() {
+        return Ok(None);
+    }
     let cli = parse_args();
     let file_path = commands::find_file(&cli.file_path)?;
 
