@@ -1,6 +1,6 @@
 # donk bash-completion script
 
-# to install bash auto-completion for donk, add the following to ~/.bashrc or equivalent:
+# to install bash completion for donk, add the following to ~/.bashrc or equivalent:
 #     eval "$(_DONK_COMPLETE=source donk --completion-script)"
 
 _donk()
@@ -29,5 +29,5 @@ _donk()
 } &&
 complete -F _donk donk
 
-# to install bash auto-completion for donk, add the following to ~/.bashrc or equivalent:
+# to install bash completion for donk, add the following to ~/.bashrc or equivalent:
 #     eval "$(_DONK_COMPLETE=source donk --completion-script)"

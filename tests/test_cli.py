@@ -1,5 +1,6 @@
 import json
 import re
+from pathlib import Path
 
 from .conftest import TPath
 
@@ -281,3 +282,46 @@ def test_working_dir(run, test_path: TPath):
         'foo > pwd\n'
         'Command "foo" successful in XXms 👍\n'
     )
+
+
+def test_bash_completion_script(run):
+    p = run('--completion-script')
+    assert p.returncode == 0
+    assert p.stderr == ''
+    assert p.stdout.startswith('# donk bash-completion script\n')
+
+
+def test_bash_command_completion_none(run, test_path: TPath):
+    p = run('--complete-command')
+    assert p.returncode == 0
+    assert p.stderr == ''
+    assert p.stdout == ''
+
+
+def test_bash_command_completion_default(run, test_path: TPath):
+    test_path.write_file('donk.yml', """
+    foo: xxx
+    bar: yyy
+    """)
+    p = run('--complete-command')
+    assert p.returncode == 0
+    assert p.stdout == 'foo bar\n'
+    assert p.stderr == ''
+
+
+def test_bash_command_completion_custom_file(run, test_path: TPath):
+    test_path.write_file('other/dir/donk.yml', """
+    a: xxx
+    b: yyy
+    """)
+    p = run('--complete-command', './other/dir/donk.yml')
+    assert p.returncode == 0
+    assert p.stdout == 'a b\n'
+    assert p.stderr == ''
+
+
+def test_bash_command_completion_custom_file_missing(run, test_path: TPath):
+    p = run('--complete-command', './other/dir/donk.yml')
+    assert p.returncode == 0
+    assert p.stdout == ''
+    assert p.stderr == ''

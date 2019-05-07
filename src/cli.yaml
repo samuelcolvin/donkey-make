@@ -8,7 +8,9 @@ args:
     takes_value: false
 - completion_script:
     long: completion-script
-    help: Generate bash script to setup bash auto-completion and exit.
+    help: >
+      Print the script used to setup bash completion and exit,
+      you can install bash-completion with `eval "$(_DONK_COMPLETE=source donk --completion-script)"`.
     takes_value: false
 - file:
     short: f

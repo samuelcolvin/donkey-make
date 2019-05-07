@@ -10,7 +10,7 @@ pub const COMPLETE_COMMAND: &str = "--complete-command";
 pub fn main() -> bool {
     let args: Vec<String> = env::args().collect();
     if args.contains(&COMPLETION_SCRIPT.to_string()) {
-        print!("{}", include_str!("completion.sh"));;
+        print!("{}", include_str!("completion.sh"));
     } else if args.contains(&COMPLETE_COMMAND.to_string()) {
         // errors in complete_command are ignored, we just don't make any suggestions
         complete_command(args);
