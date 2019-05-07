@@ -81,7 +81,9 @@ class TPath:
         self.path = p
 
     def write_file(self, name, content):
-        (self.path / name).write_text(content)
+        path = self.path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
 
     def __str__(self):
         return str(self.path)
