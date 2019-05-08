@@ -1,5 +1,5 @@
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::commands;
 
@@ -21,15 +21,21 @@ pub fn main() -> bool {
 }
 
 fn complete_command(args: Vec<String>) -> Result<(), String> {
-    let file_path = if args.iter().count() == 3 && Path::new(&args[2]).is_file() {
-        Some(args[2].clone())
+    let config = if args.iter().count() == 3 && Path::new(&args[2]).is_file() {
+        let file_path = PathBuf::from(args[2].clone());
+        match commands::load_file(&file_path) {
+            Err(_) => default_config()?,
+            Ok(c) => c,
+        }
     } else {
-        None
+        default_config()?
     };
-
-    let file_path = commands::find_file(&file_path)?;
-    let config = commands::load_file(&file_path)?;
 
     println!("{}", config.keys().join(" "));
     Ok(())
+}
+
+fn default_config() -> Result<commands::FileConfig, String> {
+    let file_path = commands::find_file(&None)?;
+    commands::load_file(&file_path)
 }
