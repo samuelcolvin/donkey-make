@@ -1,6 +1,5 @@
 import json
 import re
-from pathlib import Path
 
 from .conftest import TPath
 
@@ -47,7 +46,7 @@ def test_smart_script(run, test_path: TPath):
     assert p.stdout == 'this is a test\nmore\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > echo "this is a test"\n'
+        '» echo "this is a test"\n'
         'Command "foo" successful in XXms 👍\n'
     )
 
@@ -99,9 +98,9 @@ def test_subcommands(run, test_path: TPath):
     assert p.returncode == 0
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "c" from donkey-make.yaml...\n'
-        'c > a > echo a\n'
+        '» a › echo a\n'
         'a\n'
-        'c > b > echo b\n'
+        '» b › echo b\n'
         'b\n'
         'Command "c" successful in XXms 👍\n'
     )
@@ -116,7 +115,7 @@ def test_fails(run, test_path: TPath):
     assert p.returncode == 4
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > exit 4\n'
+        '» exit 4\n'
         'Command "foo" failed in XXms, exit code 4 👎\n'
     )
 
@@ -130,7 +129,7 @@ def test_fails(run, test_path: TPath):
     assert p.returncode == 4
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > exit 4\n'
+        '» exit 4\n'
         'Command "foo" failed in XXms, exit code 4 👎\n'
     )
 
@@ -150,7 +149,7 @@ def test_extra_env(run, test_path: TPath):
     assert p.returncode == 0
     env = json.loads(p.stdout)
     assert env == {
-        'DONKEY_MAKE_COMMAND': 'bar > foo',
+        'DONKEY_MAKE_COMMAND': '» foo ›',
         'DONKEY_MAKE_CONFIG_FILE': '{}/donkey-make.yaml'.format(test_path.path),
         'DONKEY_MAKE_DEPTH': '2',
         'DONKEY_MAKE_KEEP': '0',
@@ -169,7 +168,7 @@ def test_inline_subcommand(run, test_path: TPath):
     assert p.stdout == 'this is bar\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > bar > echo this is bar\n'
+        '» bar › echo this is bar\n'
         'Command "foo" successful in XXms 👍\n'
     )
 
@@ -187,8 +186,8 @@ def test_inline_env(run, test_path: TPath):
     assert p.stdout == 'apple\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > bar > foobar=apple\n'
-        'foo > echo $foobar\n'
+        '» bar › foobar=apple\n'
+        '» echo $foobar\n'
         'Command "foo" successful in XXms 👍\n'
     )
 
@@ -279,7 +278,7 @@ def test_working_dir(run, test_path: TPath):
     assert p.stdout == '/tmp\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > pwd\n'
+        '» pwd\n'
         'Command "foo" successful in XXms 👍\n'
     )
 

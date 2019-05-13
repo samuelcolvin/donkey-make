@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use ansi_term::Colour::{Cyan, Green, Yellow};
+use ansi_term::Colour::{Fixed, Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
 
 use crate::commands::{Cmd, FileConfig};
@@ -29,8 +29,8 @@ pub fn main(
         run_depth = v.parse::<i32>().unwrap_or(1);
     }
     let smart_prefix = match env::var(DONKEY_COMMAND_ENV) {
-        Ok(c) => format!("{} > {}", c, cmd_name),
-        _ => cmd_name.to_string(),
+        Ok(c) => format!("{} {} ›", c, cmd_name),
+        _ => "»".to_string(),
     };
     let mut args: Vec<String> = vec![path_str.clone()];
     args.extend(cmd.args.iter().cloned());
@@ -240,7 +240,7 @@ fn build_smart_script(
     let mut script: Vec<String> = vec!["set -e".to_string()];
     for line in lines {
         if !PREFIXES.iter().any(|&prefix| line.starts_with(prefix)) {
-            let coloured = epaint!(Cyan, format!("{} > {}", smart_prefix, line));
+            let coloured = epaint!(Fixed(205), format!("{} {}", smart_prefix, line));
             script.push(format!(">&2 echo '{}'", coloured));
         }
 
@@ -260,7 +260,7 @@ fn build_smart_script(
             }
             cmd_tree.insert(sub_cmd_name.clone().to_string());
             let sub_cmd = get_sub_command(config, sub_cmd_name)?;
-            let sub_cmd_prefix = format!("{} > {}", smart_prefix, sub_cmd_name);
+            let sub_cmd_prefix = format!("{} {} ›", smart_prefix, sub_cmd_name);
             ex_line = build_smart_script(sub_cmd, sub_cmd_prefix, donk_exe, config, &mut *cmd_tree)?;
         } else {
             if len == 1 && !line.contains('$') {
