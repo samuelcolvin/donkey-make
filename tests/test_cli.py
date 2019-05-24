@@ -141,12 +141,12 @@ def test_extra_env(run, test_path: TPath):
       - import os, json
       - "env = {k: v for k, v in os.environ.items() if k.startswith('DONKEY_')}"
       - print(json.dumps(env))
-      ex: python
+      ex: python3
     bar:
       - +foo
     """)
     p = run('bar')
-    assert p.returncode == 0
+    assert p.returncode == 0, (p.stdout, p.stderr)
     env = json.loads(p.stdout)
     assert env == {
         'DONKEY_MAKE_COMMAND': '» foo ›',

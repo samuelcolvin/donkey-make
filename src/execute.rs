@@ -99,7 +99,7 @@ fn write(
         format!("Command to be executed: \"{} {}\"", cmd.executable(), args.join(" ")),
         String::from("Environment variables set:"),
         format!("{:?}", env),
-        String::from("This file should only exist very temporarily while it's be executed."),
+        String::from("This file should only exist very temporarily while it's being executed."),
         String::from(BAR),
     ];
     let comment = if cmd.executable().starts_with("node") {
