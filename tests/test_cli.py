@@ -46,7 +46,7 @@ def test_smart_script(run, test_path: TPath):
     assert p.stdout == 'this is a test\nmore\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > echo "this is a test"\n'
+        '» echo "this is a test"\n'
         'Command "foo" successful in XXms 👍\n'
     )
 
@@ -98,9 +98,9 @@ def test_subcommands(run, test_path: TPath):
     assert p.returncode == 0
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "c" from donkey-make.yaml...\n'
-        'c > a > echo a\n'
+        '» a › echo a\n'
         'a\n'
-        'c > b > echo b\n'
+        '» b › echo b\n'
         'b\n'
         'Command "c" successful in XXms 👍\n'
     )
@@ -115,7 +115,7 @@ def test_fails(run, test_path: TPath):
     assert p.returncode == 4
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > exit 4\n'
+        '» exit 4\n'
         'Command "foo" failed in XXms, exit code 4 👎\n'
     )
 
@@ -129,7 +129,7 @@ def test_fails(run, test_path: TPath):
     assert p.returncode == 4
     assert re.sub(r'[\d.]+ms', 'XXms', p.stdout) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > exit 4\n'
+        '» exit 4\n'
         'Command "foo" failed in XXms, exit code 4 👎\n'
     )
 
@@ -141,15 +141,15 @@ def test_extra_env(run, test_path: TPath):
       - import os, json
       - "env = {k: v for k, v in os.environ.items() if k.startswith('DONKEY_')}"
       - print(json.dumps(env))
-      ex: python
+      ex: python3
     bar:
       - +foo
     """)
     p = run('bar')
-    assert p.returncode == 0
+    assert p.returncode == 0, (p.stdout, p.stderr)
     env = json.loads(p.stdout)
     assert env == {
-        'DONKEY_MAKE_COMMAND': 'bar > foo',
+        'DONKEY_MAKE_COMMAND': '» foo ›',
         'DONKEY_MAKE_CONFIG_FILE': '{}/donkey-make.yaml'.format(test_path.path),
         'DONKEY_MAKE_DEPTH': '2',
         'DONKEY_MAKE_KEEP': '0',
@@ -168,7 +168,7 @@ def test_inline_subcommand(run, test_path: TPath):
     assert p.stdout == 'this is bar\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > bar > echo this is bar\n'
+        '» bar › echo this is bar\n'
         'Command "foo" successful in XXms 👍\n'
     )
 
@@ -186,8 +186,8 @@ def test_inline_env(run, test_path: TPath):
     assert p.stdout == 'apple\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > bar > foobar=apple\n'
-        'foo > echo $foobar\n'
+        '» bar › foobar=apple\n'
+        '» echo $foobar\n'
         'Command "foo" successful in XXms 👍\n'
     )
 
@@ -278,6 +278,49 @@ def test_working_dir(run, test_path: TPath):
     assert p.stdout == '/tmp\n'
     assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
         'Running command "foo" from donkey-make.yaml...\n'
-        'foo > pwd\n'
+        '» pwd\n'
         'Command "foo" successful in XXms 👍\n'
     )
+
+
+def test_bash_completion_script(run):
+    p = run('--completion-script')
+    assert p.returncode == 0
+    assert p.stderr == ''
+    assert p.stdout.startswith('# donk bash-completion script\n')
+
+
+def test_bash_command_completion_none(run, test_path: TPath):
+    p = run('--complete-command')
+    assert p.returncode == 0
+    assert p.stderr == ''
+    assert p.stdout == ''
+
+
+def test_bash_command_completion_default(run, test_path: TPath):
+    test_path.write_file('donk.yml', """
+    foo: xxx
+    bar: yyy
+    """)
+    p = run('--complete-command')
+    assert p.returncode == 0
+    assert p.stdout == 'foo bar\n'
+    assert p.stderr == ''
+
+
+def test_bash_command_completion_custom_file(run, test_path: TPath):
+    test_path.write_file('other/dir/donk.yml', """
+    a: xxx
+    b: yyy
+    """)
+    p = run('--complete-command', './other/dir/donk.yml')
+    assert p.returncode == 0
+    assert p.stdout == 'a b\n'
+    assert p.stderr == ''
+
+
+def test_bash_command_completion_custom_file_missing(run, test_path: TPath):
+    p = run('--complete-command', './other/dir/donk.yml')
+    assert p.returncode == 0
+    assert p.stdout == ''
+    assert p.stderr == ''

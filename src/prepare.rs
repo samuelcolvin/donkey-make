@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use ansi_term::Colour::Cyan;
+use ansi_term::Colour::Fixed;
 use linked_hash_map::LinkedHashMap as Map;
 
 use crate::commands::{Cmd, FileConfig, Repeat};
@@ -21,8 +21,8 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
         run_depth = v.parse::<i32>().unwrap_or(1);
     }
     let smart_prefix = match env::var(DONKEY_COMMAND_ENV) {
-        Ok(c) => format!("{} > {}", c, cmd_name),
-        _ => cmd_name.to_string(),
+        Ok(c) => format!("{} {} ›", c, cmd_name),
+        _ => "»".to_string(),
     };
     let mut args: Vec<String> = vec![path_str.clone()];
     args.extend(cmd.args.iter().cloned());
@@ -95,7 +95,7 @@ fn write(
         format!("Command to be executed: \"{} {}\"", cmd.executable(), args.join(" ")),
         String::from("Environment variables set:"),
         format!("{:?}", env),
-        String::from("This file should only exist very temporarily while it's be executed."),
+        String::from("This file should only exist very temporarily while it's being executed."),
         String::from(BAR),
     ];
     let comment = if cmd.executable().starts_with("node") {
@@ -150,7 +150,7 @@ fn build_smart_script(
     let mut script: Vec<String> = vec!["set -e".to_string()];
     for line in lines {
         if !PREFIXES.iter().any(|&prefix| line.starts_with(prefix)) {
-            let coloured = epaint!(Cyan, format!("{} > {}", smart_prefix, line));
+            let coloured = epaint!(Fixed(205), format!("{} {}", smart_prefix, line));
             script.push(format!(">&2 echo '{}'", coloured));
         }
 
@@ -170,7 +170,7 @@ fn build_smart_script(
             }
             cmd_tree.insert(sub_cmd_name.clone().to_string());
             let sub_cmd = get_sub_command(config, sub_cmd_name)?;
-            let sub_cmd_prefix = format!("{} > {}", smart_prefix, sub_cmd_name);
+            let sub_cmd_prefix = format!("{} {} ›", smart_prefix, sub_cmd_name);
             ex_line = build_smart_script(sub_cmd, sub_cmd_prefix, donk_exe, config, &mut *cmd_tree)?;
         } else {
             if len == 1 && !line.contains('$') {

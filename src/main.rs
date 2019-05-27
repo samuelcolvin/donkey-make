@@ -21,6 +21,7 @@ use crate::commands::{Cmd, FileConfig};
 use crate::utils::{CliArgs, DONKEY_KEEP_ENV};
 
 mod commands;
+mod completion;
 mod execute;
 mod prepare;
 mod utils;
@@ -40,6 +41,10 @@ fn main() {
 }
 
 fn run() -> Result<i32, String> {
+    if completion::main() {
+        return Ok(0);
+    }
+
     let cli = parse_args();
     let file_path = commands::find_file(&cli.file_path)?;
 

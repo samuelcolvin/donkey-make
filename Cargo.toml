@@ -1,6 +1,6 @@
 [package]
 name = "donkey-make"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Samuel Colvin <s@muelcolvin.com>"]
 edition = "2018"
 description = "Make for the 21st century"
@@ -8,7 +8,7 @@ description = "Make for the 21st century"
 [dependencies]
 ansi_term = "0.11"
 atty = "0.2"
-clap = {version = "2.33.0", features = ["yaml"]}
+clap = {version = "2.33.0", features = ["yaml", "wrap_help", "color"]}
 linked-hash-map = {version = "0.5.2", features = ["serde_impl"]}
 serde = "1.0"
 serde_derive = "1.0"
