@@ -354,6 +354,8 @@ def test_watch(run, test_path: TPath):
     t = threading.Thread(target=kill_donk)
     t.start()
     p = run('watch')
+    print(p.stdout)
+    print(p.stderr)
     assert p.returncode == 0
     assert p.stdout == 'testing\n'
     assert re.sub(r'[\d.]+m?s', '[TIME]', p.stderr) == (
