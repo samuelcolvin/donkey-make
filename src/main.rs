@@ -111,11 +111,17 @@ fn parse_args() -> CliArgs {
         }
     };
 
+    let watch_path = match raw_args.value_of("watch_path") {
+        Some(w) => Some(w.to_string()),
+        None => None,
+    };
+
     CliArgs {
         file_path,
         command,
         args,
         keep_tmp,
+        watch_path,
     }
 }
 

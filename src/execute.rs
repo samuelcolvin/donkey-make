@@ -30,7 +30,7 @@ pub struct Run {
 }
 
 pub fn main(run: &Run, cmd: &Cmd, cli: &CliArgs) -> Result<i32, String> {
-    let exit_code = match &cmd.watch {
+    let exit_code = match &run.watch_path {
         Some(_) => run_command_watch(&run, &cmd),
         None => run_command_once(&run, &cmd),
     };

@@ -41,7 +41,12 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
 
     let working_dir = get_working_dir(&cmd, file_path)?;
 
-    let watch_path: Option<PathBuf> = match &cmd.watch {
+    let watch = match cli.watch_path {
+        Some(_) => &cli.watch_path,
+        None => &cmd.watch,
+    };
+
+    let watch_path: Option<PathBuf> = match watch {
         Some(path) => {
             let mut p = PathBuf::from(path);
             if p.is_relative() {

@@ -15,6 +15,7 @@ pub struct CliArgs {
     pub command: Option<String>,
     pub args: Vec<String>,
     pub keep_tmp: bool,
+    pub watch_path: Option<String>,
 }
 
 pub fn full_path(path: &PathBuf) -> String {
