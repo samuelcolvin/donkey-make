@@ -7,6 +7,8 @@ extern crate linked_hash_map;
 extern crate serde_derive;
 extern crate serde_yaml;
 extern crate signal_hook;
+#[macro_use]
+extern crate lazy_static;
 
 #[macro_use]
 mod macros;
@@ -18,30 +20,31 @@ use std::string::ToString;
 use ansi_term::Colour::{Cyan, Green, Red};
 
 use crate::commands::{Cmd, FileConfig};
-use crate::consts::{CliArgs, DONKEY_KEEP_ENV};
+use crate::utils::{CliArgs, DONKEY_KEEP_ENV};
 
 mod commands;
 mod completion;
-mod consts;
 mod execute;
+mod prepare;
+mod utils;
 
 fn main() {
-    let optional_exit_code = match run() {
+    let exit_code = match run() {
         Err(e) => {
             eprintlnc!(Red, "{}", e);
             // use 100 to hopefully differentiate from command error codes
-            Some(100)
+            100
         }
         Ok(c) => c,
     };
-    if let Some(exit_code) = optional_exit_code {
+    if exit_code != 0 {
         std::process::exit(exit_code);
     }
 }
 
-fn run() -> Result<Option<i32>, String> {
+fn run() -> Result<i32, String> {
     if completion::main() {
-        return Ok(None);
+        return Ok(0);
     }
 
     let cli = parse_args();
@@ -53,12 +56,13 @@ fn run() -> Result<Option<i32>, String> {
         Some(c) => c,
         _ => {
             help_message(&file_path, &config);
-            return Ok(None);
+            return Ok(0);
         }
     };
-    let command = get_command(&config, &command_name)?;
+    let cmd = get_command(&config, &command_name)?;
 
-    let c = execute::main(&command_name, &config, &command, &cli, &file_path)?;
+    let run = prepare::main(&command_name, &config, &cmd, &cli, &file_path)?;
+    let c = execute::main(&run, &cmd, &cli)?;
     Ok(c)
 }
 
@@ -107,11 +111,17 @@ fn parse_args() -> CliArgs {
         }
     };
 
+    let watch_path = match raw_args.value_of("watch_path") {
+        Some(w) => Some(w.to_string()),
+        None => None,
+    };
+
     CliArgs {
         file_path,
         command,
         args,
         keep_tmp,
+        watch_path,
     }
 }
 

@@ -17,6 +17,11 @@ args:
     long: file
     help: File in which to find commands, by default donk.ya?ml, donkey.ya?ml, and donkey-make.ya?ml are tried.
     takes_value: true
+- watch_path:
+    short: w
+    long: watch
+    help: Watch this directory and restart the command when files change.
+    takes_value: true
 - command:
     required: false
     index: 1

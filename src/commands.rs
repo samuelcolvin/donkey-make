@@ -8,7 +8,7 @@ use linked_hash_map::LinkedHashMap as Map;
 use serde::de::{self, Deserialize, Deserializer, Error, SeqAccess, Visitor};
 use serde_yaml::{from_reader, from_value, Mapping, Value};
 
-use crate::consts::{BASH, BASH_SMART, DONKEY_FILE_ENV};
+use crate::utils::{BASH, BASH_SMART, DONKEY_FILE_ENV};
 
 #[derive(Debug, Deserialize)]
 pub struct FileConfig {
@@ -32,6 +32,8 @@ pub struct Cmd {
     pub args: Vec<String>,
     pub env: Map<String, String>,
     pub working_dir: Option<String>,
+    pub watch: Option<String>,
+    pub watch_debounce: f32,
     executable: String,
     description: Option<String>,
 }
@@ -149,6 +151,9 @@ impl<'de> Deserialize<'de> for Cmd {
         fn dft_exe() -> String {
             BASH_SMART.to_string()
         }
+        fn dft_debounce() -> f32 {
+            0.2
+        }
 
         #[derive(Debug, Deserialize)]
         struct Command {
@@ -159,6 +164,9 @@ impl<'de> Deserialize<'de> for Cmd {
             #[serde(default)]
             env: Map<String, String>,
             working_dir: Option<String>,
+            watch: Option<String>,
+            #[serde(default = "dft_debounce")]
+            pub watch_debounce: f32,
             #[serde(rename = "ex")]
             #[serde(default = "dft_exe")]
             executable: String,
@@ -174,11 +182,16 @@ impl<'de> Deserialize<'de> for Cmd {
 
         if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
+            if c.watch_debounce < 0.0 {
+                return Err(D::Error::custom("watch_debounce must be greater than or equal to 0"));
+            }
             Ok(Cmd {
                 run: c.run,
                 args: c.args,
                 env: c.env,
                 working_dir: c.working_dir,
+                watch: c.watch,
+                watch_debounce: c.watch_debounce,
                 executable: c.executable,
                 description: c.description,
             })
