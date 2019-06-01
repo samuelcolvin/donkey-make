@@ -333,10 +333,16 @@ def test_bash_command_completion_custom_file_missing(run, test_path: TPath):
 
 
 def kill_donk():
-    sleep(0.1)
-    for child in Process().children(recursive=True):
-        print('sending kill to', child.pid)
-        os.kill(child.pid, signal.SIGTERM)
+    sleep(1)
+
+    # have to send signal only to bash process outherwise kcov gets upset
+    children = Process().children(recursive=True)
+    print(children)
+    for child in children:
+        name = child.name()
+        if 'donk' in name:
+            print('sending kill to', child.pid)
+            os.kill(child.pid, signal.SIGTERM)
 
 
 def test_watch(run, test_path: TPath):
@@ -350,10 +356,10 @@ def test_watch(run, test_path: TPath):
     p = run('watch')
     assert p.returncode == 0
     assert p.stdout == 'testing\n'
-    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+    assert re.sub(r'[\d.]+m?s', '[TIME]', p.stderr) == (
         'Running command "watch" from donk.yml, repeating on file changes in "{}"...\n'
         '» echo testing\n'
-        'Command "watch" successful in XXms 👍\n'
-        'Running "watch" stopped with signal SIGTERM after XXms\n'
+        'Command "watch" successful in [TIME] 👍\n'
+        'Running "watch" stopped with signal SIGTERM after [TIME]\n'
     ).format(test_path)
     t.join()
