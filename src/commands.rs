@@ -26,29 +26,14 @@ impl FileConfig {
     }
 }
 
-fn dft_debounce() -> f32 {
-    0.2
-}
-
-fn dft_path() -> String {
-    ".".to_string()
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Watch {
-    #[serde(default = "dft_debounce")]
-    pub debounce: f32,
-    #[serde(default = "dft_path")]
-    pub path: String,
-}
-
 #[derive(Debug)]
 pub struct Cmd {
     pub run: Vec<String>,
     pub args: Vec<String>,
     pub env: Map<String, String>,
     pub working_dir: Option<String>,
-    pub watch: Option<Watch>,
+    pub watch: Option<String>,
+    pub watch_debounce: f32,
     executable: String,
     description: Option<String>,
 }
@@ -166,6 +151,9 @@ impl<'de> Deserialize<'de> for Cmd {
         fn dft_exe() -> String {
             BASH_SMART.to_string()
         }
+        fn dft_debounce() -> f32 {
+            0.2
+        }
 
         #[derive(Debug, Deserialize)]
         struct Command {
@@ -176,7 +164,9 @@ impl<'de> Deserialize<'de> for Cmd {
             #[serde(default)]
             env: Map<String, String>,
             working_dir: Option<String>,
-            watch: Option<Watch>,
+            watch: Option<String>,
+            #[serde(default = "dft_debounce")]
+            pub watch_debounce: f32,
             #[serde(rename = "ex")]
             #[serde(default = "dft_exe")]
             executable: String,
@@ -192,18 +182,16 @@ impl<'de> Deserialize<'de> for Cmd {
 
         if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
-            match &c.watch {
-                Some(Watch { debounce: d, .. }) if d < &0.0 => {
-                    return Err(D::Error::custom("interval must be greater than or equal to 0"));
-                }
-                _ => (),
-            };
+            if c.watch_debounce < 0.0 {
+                return Err(D::Error::custom("watch_debounce must be greater than or equal to 0"));
+            }
             Ok(Cmd {
                 run: c.run,
                 args: c.args,
                 env: c.env,
                 working_dir: c.working_dir,
                 watch: c.watch,
+                watch_debounce: c.watch_debounce,
                 executable: c.executable,
                 description: c.description,
             })

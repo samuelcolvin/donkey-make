@@ -15,7 +15,7 @@ use nix::unistd::Pid;
 use notify::{op, raw_watcher, RawEvent, RecursiveMode, Watcher};
 use regex::Regex;
 
-use crate::commands::{Cmd, Watch};
+use crate::commands::Cmd;
 use crate::utils::{full_path, CliArgs};
 
 pub struct Run {
@@ -31,7 +31,7 @@ pub struct Run {
 
 pub fn main(run: &Run, cmd: &Cmd, cli: &CliArgs) -> Result<i32, String> {
     let exit_code = match &cmd.watch {
-        Some(Watch { debounce: d, .. }) => run_command_watch(&run, &cmd, *d),
+        Some(_) => run_command_watch(&run, &cmd),
         None => run_command_once(&run, &cmd),
     };
     delete(&run.tmp_path, cli.keep_tmp)?;
@@ -73,7 +73,7 @@ fn run_command_once(run: &Run, cmd: &Cmd) -> Result<i32, String> {
 
 const WAIT_MS: u64 = 20;
 
-fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String> {
+fn run_command_watch(run: &Run, cmd: &Cmd) -> Result<i32, String> {
     let watch_path = match &run.watch_path {
         Some(p) => p,
         _ => panic!("watch_path not set"),
@@ -86,7 +86,7 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
         full_path(watch_path)
     );
     // minimum time for which events will be grouped together
-    let debounce_min = Duration::from_millis((debounce * 1000.0) as u64);
+    let debounce_min = Duration::from_millis((cmd.watch_debounce * 1000.0) as u64);
     // maximum time for which events will be grouped, if this time is reached the command will be restarted regardless
     // of whether an event happened recently
     let debounce_max = debounce_min * 4;
