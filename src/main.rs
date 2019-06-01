@@ -7,6 +7,8 @@ extern crate linked_hash_map;
 extern crate serde_derive;
 extern crate serde_yaml;
 extern crate signal_hook;
+#[macro_use]
+extern crate lazy_static;
 
 #[macro_use]
 mod macros;

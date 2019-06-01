@@ -12,7 +12,8 @@ use ansi_term::Colour::{Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
 use nix::sys::signal::{kill, Signal as NixSignal};
 use nix::unistd::Pid;
-use notify::{raw_watcher, RawEvent, RecursiveMode, Watcher};
+use notify::{op, raw_watcher, RawEvent, RecursiveMode, Watcher};
+use regex::Regex;
 
 use crate::commands::{Cmd, Watch};
 use crate::utils::{full_path, CliArgs};
@@ -96,6 +97,8 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
     watcher.watch(watch_path, RecursiveMode::Recursive).map_err(error_str)?;
     let sig = register_signals().map_err(error_str)?;
 
+    let mut env = run.env.clone();
+
     let mut first_event: Option<Instant> = None;
     let mut last_event: Option<Instant> = None;
     let mut events: Vec<RawEvent> = Vec::new();
@@ -105,13 +108,15 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
             watch_stopped(&sig, &run.cmd_name, start.elapsed());
             return Ok(0);
         }
-        let running_process = start_command(run, cmd)?;
+        let running_process = start_command(run, cmd, &env)?;
         loop {
             if let Ok(evt) = rx.recv_timeout(recv_timeout) {
-                events.push(evt);
-                last_event = Some(Instant::now());
-                if first_event.is_none() {
-                    first_event = last_event;
+                if include_path(&evt) {
+                    events.push(evt);
+                    last_event = Some(Instant::now());
+                    if first_event.is_none() {
+                        first_event = last_event;
+                    }
                 }
             }
             if signal_name(&sig).is_some() {
@@ -140,11 +145,34 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
             .join()
             .expect("Unable to join await_command thread")?;
 
-        println!("event: {:?}", events);
+        env.insert("events".to_string(), events_to_json(&events));
+
         first_event = None;
         last_event = None;
         events.clear();
     }
+}
+
+fn include_path(evt: &RawEvent) -> bool {
+    // Ignore the following files which commonly don't reserve to be considered:
+    // .donk.tmp and .donk.tmp.<v> donkey-make files - important we ignore these to avoid constant reloading
+    // ___jb_tmp___ and ___jb_old___ temporary files from python
+    // .pyc and friends python code bytes
+    // .swp vim files
+    // ~ linux temporary files
+    lazy_static! {
+        static ref IGNORE_PATH: Regex =
+            Regex::new(r"(?:\.donk\.tmp(?:\.\d+)?|___jb_.{3}___|\.py[cod]|\.sw.|~)$").unwrap();
+    }
+    if let Ok(op::CLOSE_WRITE) = evt.op {
+        return false;
+    }
+    if let Some(path) = &evt.path {
+        if IGNORE_PATH.is_match(&path.to_string_lossy().to_string()) {
+            return false;
+        }
+    }
+    true
 }
 
 fn watch_stopped(sig: &Signal, cmd_name: &str, duration: Duration) {
@@ -158,7 +186,7 @@ fn watch_stopped(sig: &Signal, cmd_name: &str, duration: Duration) {
 }
 
 fn run_command(run: &Run, cmd: &Cmd) -> Result<(Option<i32>, String), String> {
-    let rp = start_command(run, cmd)?;
+    let rp = start_command(run, cmd, &run.env)?;
     rp.handle.join().expect("Unable to join await_command thread")
 }
 
@@ -168,9 +196,9 @@ struct RunningProcess {
     pub handle: JoinHandle<Result<(Option<i32>, String), String>>,
 }
 
-fn start_command(run: &Run, cmd: &Cmd) -> Result<RunningProcess, String> {
+fn start_command(run: &Run, cmd: &Cmd, envs: &Map<String, String>) -> Result<RunningProcess, String> {
     let mut c = Command::new(cmd.executable());
-    c.args(&run.args).envs(&run.env).current_dir(&run.working_dir);
+    c.args(&run.args).envs(envs).current_dir(&run.working_dir);
 
     let cmd_name = run.cmd_name.clone();
     let print_summary = run.print_summary;
@@ -271,6 +299,35 @@ fn format_duration(duration: Duration) -> String {
         }
         d => format!("{}s", d.as_secs()),
     }
+}
+
+fn events_to_json(events: &[RawEvent]) -> String {
+    let mut json_events: Vec<String> = events
+        .iter()
+        .map(|e| {
+            let path = match &e.path {
+                Some(p) => format!("\"{}\"", full_path(p)),
+                None => "null".to_string(),
+            };
+            let op = match e.op {
+                Ok(op::CHMOD) => "CHMOD",
+                Ok(op::CREATE) => "CREATE",
+                Ok(op::REMOVE) => "REMOVE",
+                Ok(op::RENAME) => "RENAME",
+                Ok(op::WRITE) => "WRITE",
+                Ok(op::CLOSE_WRITE) => "CLOSE_WRITE",
+                Ok(op::RESCAN) => "RESCAN",
+                Ok(_) => "UNKNOWN", // TODO can't work out what the other codes mean.
+                Err(_) => "UNKNOWN",
+            };
+            format!(r#"{{"path":{},"op":"{}"}}"#, path, op)
+        })
+        .collect();
+
+    // remove duplicates
+    json_events.sort_unstable();
+    json_events.dedup();
+    format!("[{}]", json_events.join(","))
 }
 
 #[cfg(test)]
