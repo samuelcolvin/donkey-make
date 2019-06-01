@@ -1,5 +1,11 @@
 import json
+import os
 import re
+import signal
+import threading
+from time import sleep
+
+from psutil import Process
 
 from .conftest import TPath
 
@@ -324,3 +330,30 @@ def test_bash_command_completion_custom_file_missing(run, test_path: TPath):
     assert p.returncode == 0
     assert p.stdout == ''
     assert p.stderr == ''
+
+
+def kill_donk():
+    sleep(0.1)
+    for child in Process().children(recursive=True):
+        print('sending kill to', child.pid)
+        os.kill(child.pid, signal.SIGTERM)
+
+
+def test_watch(run, test_path: TPath):
+    test_path.write_file('donk.yml', """
+    watch:
+      run: echo testing
+      watch: .
+    """)
+    t = threading.Thread(target=kill_donk)
+    t.start()
+    p = run('watch')
+    assert p.returncode == 0
+    assert p.stdout == 'testing\n'
+    assert re.sub(r'[\d.]+ms', 'XXms', p.stderr) == (
+        'Running command "watch" from donk.yml, repeating on file changes in "{}"...\n'
+        '» echo testing\n'
+        'Command "watch" successful in XXms 👍\n'
+        'Running "watch" stopped with signal SIGTERM after XXms\n'
+    ).format(test_path)
+    t.join()
