@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use ansi_term::Colour::Fixed;
 use linked_hash_map::LinkedHashMap as Map;
 
-use crate::commands::{Cmd, FileConfig, Repeat};
+use crate::commands::{Cmd, FileConfig, Watch};
 use crate::execute::Run;
 use crate::utils::{
     full_path, CliArgs, BAR, DONKEY_COMMAND_ENV, DONKEY_DEPTH_ENV, DONKEY_FILE_ENV, DONKEY_KEEP_ENV, PATH_STR,
@@ -41,8 +41,8 @@ pub fn main(cmd_name: &str, config: &FileConfig, cmd: &Cmd, cli: &CliArgs, file_
 
     let working_dir = get_working_dir(&cmd, file_path)?;
 
-    let watch_path: Option<PathBuf> = match &cmd.repeat {
-        Some(Repeat::Watch { path, .. }) => {
+    let watch_path: Option<PathBuf> = match &cmd.watch {
+        Some(Watch { path, .. }) => {
             let mut p = PathBuf::from(path);
             if p.is_relative() {
                 p = working_dir.join(&p).to_path_buf();

@@ -1,18 +1,20 @@
 use std::fs;
 use std::io::Error;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::Arc;
-use std::thread::sleep;
+use std::thread::{spawn, JoinHandle};
 use std::time::{Duration, Instant};
 
 use ansi_term::Colour::{Green, Yellow};
 use linked_hash_map::LinkedHashMap as Map;
+use nix::sys::signal::{kill, Signal as NixSignal};
+use nix::unistd::Pid;
 use notify::{raw_watcher, RawEvent, RecursiveMode, Watcher};
 
-use crate::commands::{Cmd, Repeat};
+use crate::commands::{Cmd, Watch};
 use crate::utils::{full_path, CliArgs};
 
 pub struct Run {
@@ -27,10 +29,9 @@ pub struct Run {
 }
 
 pub fn main(run: &Run, cmd: &Cmd, cli: &CliArgs) -> Result<i32, String> {
-    let exit_code = match &cmd.repeat {
-        Some(Repeat::Periodic { interval: i }) => run_command_periodic(&run, &cmd, *i).map_err(error_str),
-        Some(Repeat::Watch { debounce: d, .. }) => run_command_watch(&run, &cmd, *d),
-        None => run_command_once(&run, &cmd).map_err(error_str),
+    let exit_code = match &cmd.watch {
+        Some(Watch { debounce: d, .. }) => run_command_watch(&run, &cmd, *d),
+        None => run_command_once(&run, &cmd),
     };
     delete(&run.tmp_path, cli.keep_tmp)?;
     match exit_code {
@@ -44,7 +45,7 @@ pub fn main(run: &Run, cmd: &Cmd, cli: &CliArgs) -> Result<i32, String> {
     }
 }
 
-fn run_command_once(run: &Run, cmd: &Cmd) -> Result<i32, Error> {
+fn run_command_once(run: &Run, cmd: &Cmd) -> Result<i32, String> {
     if run.print_summary {
         eprintlnc!(
             Green,
@@ -53,37 +54,23 @@ fn run_command_once(run: &Run, cmd: &Cmd) -> Result<i32, Error> {
             run.file_path.display()
         );
     }
-    let sig = register_signals()?;
-    run_command(run, cmd, &sig)
+    let sig = register_signals().map_err(error_str)?;
+    let (exit_code, dur_str) = run_command(run, cmd)?;
+    if let Some(c) = exit_code {
+        Ok(c)
+    } else {
+        eprintlnc!(
+            Yellow,
+            "Command \"{}\" killed with signal {} after {} ✋",
+            run.cmd_name,
+            signal_name(&sig).unwrap_or("UNKNOWN"),
+            dur_str
+        );
+        Ok(99)
+    }
 }
 
 const WAIT_MS: u64 = 20;
-
-fn run_command_periodic(run: &Run, cmd: &Cmd, interval: f32) -> Result<i32, Error> {
-    eprintlnc!(
-        Green,
-        "Running command \"{}\" from {}, repeating at {:0.2}s intervals...",
-        run.cmd_name,
-        run.file_path.display(),
-        interval
-    );
-    let sleep_steps = (interval * 1000.0 / (WAIT_MS as f32)) as u64;
-    let sleep_time = Duration::from_millis(WAIT_MS);
-    let sig = register_signals()?;
-
-    loop {
-        let status_code = run_command(run, cmd, &sig)?;
-        if status_code != 0 {
-            return Ok(status_code);
-        }
-        for _ in 0..sleep_steps {
-            sleep(sleep_time);
-            if signal_name(&sig).is_some() {
-                return Ok(0);
-            }
-        }
-    }
-}
 
 fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String> {
     let watch_path = match &run.watch_path {
@@ -99,7 +86,7 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
     );
     // minimum time for which events will be grouped together
     let debounce_min = Duration::from_millis((debounce * 1000.0) as u64);
-    // maximum time for which events will be grouped, if this time is reached the command will be run regardless
+    // maximum time for which events will be grouped, if this time is reached the command will be restarted regardless
     // of whether an event happened recently
     let debounce_max = debounce_min * 4;
     let recv_timeout = Duration::from_millis(WAIT_MS);
@@ -112,14 +99,13 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
     let mut first_event: Option<Instant> = None;
     let mut last_event: Option<Instant> = None;
     let mut events: Vec<RawEvent> = Vec::new();
+    let start = Instant::now();
     loop {
-        let status_code = run_command(run, cmd, &sig).map_err(error_str)?;
-        if status_code != 0 {
-            return Ok(status_code);
-        }
         if signal_name(&sig).is_some() {
+            watch_stopped(&sig, &run.cmd_name, start.elapsed());
             return Ok(0);
         }
+        let running_process = start_command(run, cmd)?;
         loop {
             if let Ok(evt) = rx.recv_timeout(recv_timeout) {
                 events.push(evt);
@@ -129,6 +115,7 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
                 }
             }
             if signal_name(&sig).is_some() {
+                watch_stopped(&sig, &run.cmd_name, start.elapsed());
                 return Ok(0);
             }
             if let Some(i) = last_event {
@@ -142,6 +129,17 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
                 }
             }
         }
+        eprintlnc!(Green, "Restarting \"{}\"...", run.cmd_name);
+        if !running_process.finished.load(Ordering::Relaxed) {
+            let pid = Pid::from_raw(running_process.process_id);
+            dbg!(pid);
+            kill(pid, NixSignal::SIGTERM).unwrap();
+        }
+        running_process
+            .handle
+            .join()
+            .expect("Unable to join await_command thread")?;
+
         println!("event: {:?}", events);
         first_event = None;
         last_event = None;
@@ -149,39 +147,74 @@ fn run_command_watch(run: &Run, cmd: &Cmd, debounce: f32) -> Result<i32, String>
     }
 }
 
-fn run_command(run: &Run, cmd: &Cmd, sig: &Signal) -> Result<i32, Error> {
+fn watch_stopped(sig: &Signal, cmd_name: &str, duration: Duration) {
+    eprintlnc!(
+        Green,
+        "Running \"{}\" stopped with signal {} after {}",
+        cmd_name,
+        signal_name(sig).unwrap_or("UNKNOWN"),
+        format_duration(duration)
+    );
+}
+
+fn run_command(run: &Run, cmd: &Cmd) -> Result<(Option<i32>, String), String> {
+    let rp = start_command(run, cmd)?;
+    rp.handle.join().expect("Unable to join await_command thread")
+}
+
+struct RunningProcess {
+    pub process_id: i32,
+    pub finished: Arc<AtomicBool>,
+    pub handle: JoinHandle<Result<(Option<i32>, String), String>>,
+}
+
+fn start_command(run: &Run, cmd: &Cmd) -> Result<RunningProcess, String> {
     let mut c = Command::new(cmd.executable());
     c.args(&run.args).envs(&run.env).current_dir(&run.working_dir);
 
+    let cmd_name = run.cmd_name.clone();
+    let print_summary = run.print_summary;
     let start = Instant::now();
-    let status = c.status()?;
+    let mut p = c.spawn().map_err(error_str)?;
+    let process_id = p.id() as i32;
+    let finished = Arc::new(AtomicBool::new(false));
+    let finished_clone = Arc::clone(&finished);
+    let handle = spawn(move || await_command(&mut p, cmd_name, print_summary, start, finished_clone));
+    let rp = RunningProcess {
+        process_id,
+        finished,
+        handle,
+    };
+    Ok(rp)
+}
+
+fn await_command(
+    p: &mut Child,
+    cmd_name: String,
+    print_summary: bool,
+    start: Instant,
+    finished: Arc<AtomicBool>,
+) -> Result<(Option<i32>, String), String> {
+    let status = p.wait().map_err(error_str)?;
     let duration = start.elapsed();
     let dur_str = format_duration(duration);
+    finished.store(true, Ordering::Relaxed);
     if let Some(c) = status.code() {
         if c == 0 {
-            if run.print_summary {
-                eprintlnc!(Green, "Command \"{}\" successful in {} 👍", run.cmd_name, dur_str);
+            if print_summary {
+                eprintlnc!(Green, "Command \"{}\" successful in {} 👍", cmd_name, dur_str);
             }
         } else {
             eprintlnc!(
                 Yellow,
                 "Command \"{}\" failed in {}, exit code {} 👎",
-                run.cmd_name,
+                cmd_name,
                 dur_str,
                 c
             );
         }
-        Ok(c)
-    } else {
-        eprintlnc!(
-            Yellow,
-            "Command \"{}\" kill with signal {} after {} ✋",
-            run.cmd_name,
-            signal_name(sig).unwrap_or("UNKNOWN"),
-            dur_str
-        );
-        Ok(99)
     }
+    Ok((status.code(), dur_str))
 }
 
 fn delete(path: &PathBuf, keep: bool) -> Result<(), String> {

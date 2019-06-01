@@ -26,10 +26,6 @@ impl FileConfig {
     }
 }
 
-fn dft_interval() -> f32 {
-    1.0
-}
-
 fn dft_debounce() -> f32 {
     0.2
 }
@@ -39,20 +35,11 @@ fn dft_path() -> String {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "mode")]
-pub enum Repeat {
-    #[serde(rename = "periodic")]
-    Periodic {
-        #[serde(default = "dft_interval")]
-        interval: f32,
-    },
-    #[serde(rename = "watch")]
-    Watch {
-        #[serde(default = "dft_debounce")]
-        debounce: f32,
-        #[serde(default = "dft_path")]
-        path: String,
-    },
+pub struct Watch {
+    #[serde(default = "dft_debounce")]
+    pub debounce: f32,
+    #[serde(default = "dft_path")]
+    pub path: String,
 }
 
 #[derive(Debug)]
@@ -61,7 +48,7 @@ pub struct Cmd {
     pub args: Vec<String>,
     pub env: Map<String, String>,
     pub working_dir: Option<String>,
-    pub repeat: Option<Repeat>,
+    pub watch: Option<Watch>,
     executable: String,
     description: Option<String>,
 }
@@ -189,7 +176,7 @@ impl<'de> Deserialize<'de> for Cmd {
             #[serde(default)]
             env: Map<String, String>,
             working_dir: Option<String>,
-            repeat: Option<Repeat>,
+            watch: Option<Watch>,
             #[serde(rename = "ex")]
             #[serde(default = "dft_exe")]
             executable: String,
@@ -205,11 +192,8 @@ impl<'de> Deserialize<'de> for Cmd {
 
         if v.is_mapping() {
             let c: Command = from_value(v).map_err(D::Error::custom)?;
-            match &c.repeat {
-                Some(Repeat::Periodic { interval: i }) if i < &0.0 => {
-                    return Err(D::Error::custom("interval must be greater than or equal to 0"));
-                }
-                Some(Repeat::Watch { debounce: d, .. }) if d < &0.0 => {
+            match &c.watch {
+                Some(Watch { debounce: d, .. }) if d < &0.0 => {
                     return Err(D::Error::custom("interval must be greater than or equal to 0"));
                 }
                 _ => (),
@@ -219,7 +203,7 @@ impl<'de> Deserialize<'de> for Cmd {
                 args: c.args,
                 env: c.env,
                 working_dir: c.working_dir,
-                repeat: c.repeat,
+                watch: c.watch,
                 executable: c.executable,
                 description: c.description,
             })
