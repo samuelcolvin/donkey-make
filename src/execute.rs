@@ -228,18 +228,18 @@ fn await_command(
     let dur_str = format_duration(duration);
     finished.store(true, Ordering::Relaxed);
     if let Some(c) = status.code() {
-        if c == 0 {
-            if print_summary {
+        if print_summary {
+            if c == 0 {
                 eprintlnc!(Green, "Command \"{}\" successful in {} 👍", cmd_name, dur_str);
+            } else {
+                eprintlnc!(
+                    Yellow,
+                    "Command \"{}\" failed in {}, exit code {} 👎",
+                    cmd_name,
+                    dur_str,
+                    c
+                );
             }
-        } else {
-            eprintlnc!(
-                Yellow,
-                "Command \"{}\" failed in {}, exit code {} 👎",
-                cmd_name,
-                dur_str,
-                c
-            );
         }
     }
     Ok((status.code(), dur_str))
